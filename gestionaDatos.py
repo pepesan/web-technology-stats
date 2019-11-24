@@ -11,11 +11,32 @@ class Site(DynamicDocument):
     tech = ListField(StringField(max_length=60))
     last_search_datetime = DateTimeField(default=datetime.utcnow)
     finished = BooleanField(default=False)
+    meta = {
+        'indexes': [
+            'url',
+            'finished',
+            'tech',
+            'retries'
+        ]
+    }
 
     def __str__(self):
         return self.url + ":" + str(self.tech)
 
-
+class Resultado:
+    tech = StringField(required=True, unique=True)
+    total = DecimalField(required=True)
+    resultDecimal = DecimalField(required=True, default=0)
+    resultPercentage = FloatField(required=True, default=0)
+    last_search_datetime = DateTimeField(default=datetime.utcnow)
+    finished = BooleanField(default=False)
+    meta = {
+        'indexes': [
+            'tech',
+            'total',
+            'finished'
+        ]
+    }
 
 
 
