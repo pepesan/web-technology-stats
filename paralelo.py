@@ -12,6 +12,7 @@ if __name__ == "__main__":
     #logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
     for index in range(10000):
         sites = Site.objects[:100](finished=False, retries__exists=False)
+        #sites = Site.objects[:100](finished=False, retries__exists=True, retries__lte=5)
         threads = list()
         for sitio in sites:
             #logging.info("Main    : create and start thread %d.", sitio)

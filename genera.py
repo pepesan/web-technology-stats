@@ -74,9 +74,14 @@ def printAllDF(df):
         print(df)
 
 def generateFigurePlotly(num,df,tamano):
+    colores = ["#5e4fa2", "#3288bd", "#66c2a5", "#abdda4", "#e6f598", "#ffffbf", "#fee08b", "#fdae61", "#f46d43",
+               "#d53e4f", "#9e0142", "#5e4fa2", "#3288bd", "#66c2a5", "#abdda4", "#e6f598", "#ffffbf", "#fee08b",
+               "#fdae61", "#f46d43"]
+
     fig = go.Figure(data=[go.Bar(
                 x=df.head(tamano)['nombre'], y=df.head(tamano)['porcentajes'],
                 text=df.head(tamano)['porcentajes'],
+                marker_color=colores,
                 textposition='auto',
             )])
     fig.update_layout(
@@ -86,7 +91,7 @@ def generateFigurePlotly(num,df,tamano):
             'x':0.5,
             'xanchor': 'center',
             'yanchor': 'top'})
-    fig.show()
+    #fig.show()
     fig.write_image("report/barras_plotly_"+str(num)+"_"+str(tamano)+".png")
 def generateFigureBokeh(num,df,tamano):
     from bokeh.io import show, output_file
@@ -106,7 +111,7 @@ def generateFigureBokeh(num,df,tamano):
     p.title.text = 'Tecnologías'
     show(p)
     #export_png(p, filename="report/plot.png")
-def generateAndSavePlot(num,tamano):
+def generateAndSavePlot(num,tamanos):
     print("Número de Resultados: " + str(num))
     df = generate_sites(num)
     porcentajes = list()
@@ -120,8 +125,10 @@ def generateAndSavePlot(num,tamano):
         index += 1
     df['porcentajes'] = porcentajes
     df['textos'] = textos
-    print(df.head(tamano))
-    generateFigurePlotly(num, df, tamano)
+
+    for tamano in tamanos:
+        print(df.head(tamano))
+        generateFigurePlotly(num, df, tamano)
     #generateFigureBokeh(num, df, tamano)
 
 
@@ -129,12 +136,11 @@ def generateAndSavePlot(num,tamano):
 if(os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
-nums = [10, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000]
+nums = [10, 50, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000]
 #nums= [100]
 tamanos = [10, 20]
-for tamano in tamanos:
-    for num in nums:
-        generateAndSavePlot(num, tamano)
+for num in nums:
+    generateAndSavePlot(num, tamanos)
 
 
 

@@ -16,16 +16,19 @@ def leeFicheroYGuarda(fichero):
                 sitio.last_search_datetime=datetime.today()
                 try:
                     sitio.save()
-                    #print("Sitio Guardado: " + row[1])
-                except:
-                    print("Error al guardar sitio: " + row[1])
+                    print("Sitio Guardado: " + row[1])
+                except Exception as e:
+                    #print("Error al guardar sitio: " + row[1])
+                    p=1
+                    #print (e)
                 line_count += 1
                 if (line_count%1000==0):
                     print("Linea: "+ str(line_count))
         print(f'Líneas {line_count} procesadas.')
     return listado
 
-fichero = 'top-1m.csv'
+#fichero = 'top-1m.csv'
+fichero = '2019-top-1m.csv'
 listado = leeFicheroYGuarda(fichero)
 #for elemento in listado:
 #    print(elemento)

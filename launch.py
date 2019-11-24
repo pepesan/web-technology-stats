@@ -6,16 +6,18 @@ from wappalyze import Wappalyzer, WebPage
 def searchURL(url):
     try:
         wappalyzer = Wappalyzer.latest()
-        webpage = WebPage.new_from_url('https://' + url)
+        webpage = WebPage.new_from_url('https://' + url, verify=False)
         result = wappalyzer.analyze(webpage)
-    except:
+    except Exception as e:
         #pprint("Fallo en sitio: " + str(url))
+        print (e)
         try:
             wappalyzer = Wappalyzer.latest()
             webpage = WebPage.new_from_url('http://' + url)
             result = wappalyzer.analyze(webpage)
-        except:
+        except Exception as e:
             #pprint("Fallo en sitio: " + str(url))
+            print(e)
             result = None
     return result
 
