@@ -171,7 +171,7 @@ def generateAndSavePlot(num,tamanos):
 if(os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
-nums = [10, 50, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000]
+nums = [10, 50, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000, 500000, 600000]
 #nums = [100]
 tamanos = [10, 20]
 for num in nums:

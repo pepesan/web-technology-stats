@@ -10,15 +10,22 @@ def searchURL(url):
         result = wappalyzer.analyze(webpage)
     except Exception as e:
         #pprint("Fallo en sitio: " + str(url))
-        print (e)
+        #print (e)
         try:
             wappalyzer = Wappalyzer.latest()
             webpage = WebPage.new_from_url('http://' + url)
             result = wappalyzer.analyze(webpage)
         except Exception as e:
             #pprint("Fallo en sitio: " + str(url))
-            print(e)
-            result = None
+            #print(e)
+            try:
+                wappalyzer = Wappalyzer.latest()
+                webpage = WebPage.new_from_url('https://www.' + url)
+                result = wappalyzer.analyze(webpage)
+            except Exception as e:
+                # pprint("Fallo en sitio: " + str(url))
+                print(e)
+                result = None
     return result
 
 
