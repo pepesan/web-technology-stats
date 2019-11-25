@@ -78,7 +78,7 @@ class WebPage(object):
         session.mount('http://', adapter)
         session.mount('https://', adapter)
         user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
-        response = requests.get(url, verify=verify, timeout=30, headers={'User-Agent': user_agent})
+        response = requests.get(url, verify=verify, timeout=10, headers={'User-Agent': user_agent})
         return cls.new_from_response(response)
 
     @classmethod

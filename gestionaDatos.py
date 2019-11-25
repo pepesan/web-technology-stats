@@ -23,22 +23,29 @@ class Site(DynamicDocument):
     def __str__(self):
         return self.url + ":" + str(self.tech)
 
-class Resultado:
-    tech = StringField(required=True, unique=True)
+
+class Resultado(DynamicDocument):
+    tech = StringField(required=True)
     total = DecimalField(required=True)
-    resultDecimal = DecimalField(required=True, default=0)
     resultPercentage = FloatField(required=True, default=0)
+    position = DecimalField(required=True)
+    batch = DecimalField(required=True)
+    resultString = StringField(required=False, default="")
     last_search_datetime = DateTimeField(default=datetime.utcnow)
     finished = BooleanField(default=False)
+
     meta = {
         'indexes': [
             'tech',
             'total',
+            'position',
+            'batch',
             'finished'
         ]
     }
 
-
+    def __str__(self):
+        return str(self.position) + ":" + str(self.tech) + ":" + str(self.resultPercentage)
 
 
 def buscaSitio(id):

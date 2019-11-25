@@ -1,12 +1,13 @@
 import pandas as pd
 from bokeh.transform import factor_cmap
 
-from gestionaDatos import Site
+from gestionaDatos import *
 import os
 import matplotlib.pyplot as plt
 import squarify
 import plotly.graph_objects as go
 REPORTDIR = 'report'
+BATCH = 1
 
 """
 Para cuando falle el bloque de ordenado
@@ -32,9 +33,17 @@ def generate_sites(num):
     for tecnologia, value in tecnologias.items():
         listado['nombre'].append(tecnologia)
         listado['cantidad'].append(value)
+
     dataframe = pd.DataFrame.from_dict(listado)
     dataframe = dataframe.sort_values(by='cantidad', ascending=False)
-    print(dataframe.shape)
+    listado = {'nombre': list(), 'cantidad': list()}
+    for row in dataframe.iterrows():
+        #print("row[1][1]: "+ str(row[1][0]))
+        #print("row[1][2]: " + str(row[1][1]))
+        listado['nombre'].append(row[1][0])
+        listado['cantidad'].append(row[1][1])
+    dataframe = pd.DataFrame.from_dict(listado)
+    # print(dataframe.shape)
     del sitios
     return dataframe
 
@@ -115,21 +124,47 @@ def generateAndSavePlot(num,tamanos):
     print("Número de Resultados: " + str(num))
     df = generate_sites(num)
     porcentajes = list()
+    porcentajesFloat= list()
     textos = list()
     index=0
     for valor in df['cantidad']:
         porcentaje=valor/num
         cadenaPorcentaje="{:.2%}".format(porcentaje)
         porcentajes.append(cadenaPorcentaje)
+        porcentajesFloat.append(porcentaje)
         textos.append(df['nombre'][index] + ": "+cadenaPorcentaje)
         index += 1
     df['porcentajes'] = porcentajes
+    df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
+    index = 1
+    for row in df.iterrows():
+        try:
+            data = Resultado.objects().get(tech=row[1][0], total=num, batch=BATCH)
+            # print(data)
+            data.delete()
+        except Exception as e:
+            print("resultado no encontrado")
+
+        resultado = Resultado()
+        resultado.tech = row[1][0]
+        resultado.total = num
+        resultado.resultDecimal = row[1][3]
+        resultado.resultString = row[1][2]
+        resultado.finished = True
+        resultado.position = index
+        resultado.batch = BATCH
+        index += 1        
+        try:
+            resultado.save()
+            #print("Sitio Guardado: " + str(resultado))
+        except Exception as e:
+            print(e)
 
     for tamano in tamanos:
         print(df.head(tamano))
         generateFigurePlotly(num, df, tamano)
-    #generateFigureBokeh(num, df, tamano)
+        #generateFigureBokeh(num, df, tamano)
 
 
 
@@ -137,7 +172,7 @@ if(os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
 nums = [10, 50, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000]
-#nums= [100]
+#nums = [100]
 tamanos = [10, 20]
 for num in nums:
     generateAndSavePlot(num, tamanos)
