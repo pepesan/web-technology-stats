@@ -27,6 +27,8 @@ Se ha dejado un fichero docker compose que debería facilitar el lanzamiento de 
  * Por fin ejecutamos el scrapper: python3 paralelo.py
  # Gráficas
  En el directorio report se deberán generar las gráficas de utilización teniendo en cuenta su posición en alexa
+ # Ficha de la encuesta
+ Para un millón de población, tener 500.000 sitios consultados constituye un 50% de muestra y por lo tanto un margen de error inferior al 0.1%
  # Licencia
  Licenciado bajo GPL v3
  David Vaquero <pepesan-at-gmail.com>
