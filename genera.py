@@ -143,6 +143,7 @@ def generateAndSavePlot(num, tamanos, criterio):
                     listado['nombre'].append(row[1][0])
                     listado['cantidad'].append(row[1][1])
         df = pd.DataFrame.from_dict(listado)
+    #print(df.head())
     porcentajes = list()
     porcentajesFloat = list()
     textos = list()
@@ -200,7 +201,7 @@ criterios = [
         'tech': None
     },
     {
-        'name': 'CMSs',
+        'name': 'CMSs_PHP',
         'query': {
                  '$or': [
                     {'tech': 'WordPress'},
