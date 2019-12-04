@@ -21,7 +21,7 @@ http://pe-kay.blogspot.com/2016/05/how-to-change-mongodbs-sort-buffer-size.html
 
 
 def generate_sites(num, criterio):
-    sitios = Site.objects.order_by('position')[:num](finished=True, tech__exists=True, __raw__=criterio['query'])
+    sitios = Site.objects.order_by('position')[:num](position__lte=num, finished=True, tech__exists=True, __raw__=criterio['query'])
     tecnologias = dict()
 
     for sitio in sitios:
@@ -34,7 +34,7 @@ def generate_sites(num, criterio):
     for tecnologia, value in tecnologias.items():
         listado['nombre'].append(tecnologia)
         listado['cantidad'].append(value)
-
+    #print(listado)
     dataframe = pd.DataFrame.from_dict(listado)
     dataframe = dataframe.sort_values(by='cantidad', ascending=False)
     listado = {'nombre': list(), 'cantidad': list()}
@@ -119,8 +119,8 @@ def generateFigurePlotly(num, df, tamano, criterio, formats):
     #print("DF Filtrado "+ str(df.head()))
     layout = go.Layout(
         autosize=False,
-        width=2000,
-        height=2000
+        width=1000,
+        height=1000
     )
     fig = go.Figure(data=[go.Bar(
         x=df.head(tamano)['nombre'], y=df.head(tamano)['porcentajes'],
@@ -160,7 +160,7 @@ def generateFigurePlotly(num, df, tamano, criterio, formats):
     # fig.show()
     for f in formats:
         fig.write_image(
-            "report/barras_plotly_" + str(num) + "_" + str(tamano) + "_"+str(criterio['name'])+"."+f
+            REPORTDIR + "/" + criterio['name']+"/barras_plotly_" + str(num) + "_" + str(tamano) + "_"+str(criterio['name'])+"."+f
         )
 
 
@@ -219,30 +219,30 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
     df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
     index = 1
-    for row in df.iterrows():
-        #print("Fila: "+ str(row))
-        try:
-            data = Resultado.objects().get(tech=row[1][0], total=num, batch=BATCH)
-            # print(data)
-            data.delete()
-        except Exception as e:
-            print("resultado no encontrado")
-
-        resultado = Resultado()
-        resultado.tech = row[1][0]
-        resultado.total = num
-        resultado.resultDecimal = row[1][1]
-        resultado.resultString = row[1][2]
-        resultado.resultPercentage= row[1][3]
-        resultado.finished = True
-        resultado.position = index
-        resultado.batch = BATCH
-        index += 1
-        try:
-            resultado.save()
-            # print("Sitio Guardado: " + str(resultado))
-        except Exception as e:
-            print(e)
+    if(criterio['name']=="Todos"):
+        for row in df.iterrows():
+            #print("Fila: "+ str(row))
+            try:
+                data = Resultado.objects().get(tech=row[1][0], total=num, batch=BATCH)
+                # print(data)
+                data.delete()
+            except Exception as e:
+                print("resultado no encontrado")
+            resultado = Resultado()
+            resultado.tech = row[1][0]
+            resultado.total = num
+            resultado.resultDecimal = row[1][1]
+            resultado.resultString = row[1][2]
+            resultado.resultPercentage= row[1][3]
+            resultado.finished = True
+            resultado.position = index
+            resultado.batch = BATCH
+            index += 1
+            try:
+                resultado.save()
+                # print("Sitio Guardado: " + str(resultado))
+            except Exception as e:
+                print(e)
 
     for tamano in tamanos:
         #print(df.head(tamano))
@@ -253,11 +253,29 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
 if (os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
-nums = [10, 50, 100, 500, 1000, 10000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000]
+nums = [10, 50, 100, 500, 1000, 10000,
+        100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000
+        ]
+
 #nums = [100]
 tamanos = [10, 20, 30, 40, 100]
 formats=['png', 'svg']
 criterios = [
+
+    {
+        'name': 'CMSs',
+        'query': {
+                 '$or': [
+                    {'tech': 'WordPress'},
+                    {'tech': 'Drupal'},
+                    {'tech': 'Joomla'},
+                     {'tech': "Liferay"},
+                     {'tech': "Blogger"},
+                     {'tech': "1C-Bitrix"}
+                  ]
+        },
+        'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "1C-Bitrix"]
+    },
     {
         'name': 'Todos',
         'query': {},
@@ -292,21 +310,6 @@ criterios = [
         'tech': ["Ubuntu", "Debian", "CentOS", "Fedora", "Red Hat", "UNIX", "Windows Server"]
     },
     {
-        'name': 'CMSs',
-        'query': {
-                 '$or': [
-                    {'tech': 'WordPress'},
-                    {'tech': 'Drupal'},
-                    {'tech': 'Joomla'},
-                     {'tech': "Liferay"},
-                     {'tech': "Blogger"},
-                     {'tech': "OpenGSE"},
-                     {'tech': "1C-Bitrix"}
-                  ]
-        },
-        'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "OpenGSE", "1C-Bitrix"]
-    },
-    {
         'name': 'Servidores-Web',
         'query': {
                  '$or': [
@@ -336,12 +339,13 @@ criterios = [
                      {'tech': "Express"},
                      {'tech': 'Ruby on Rails'},
                      {'tech': "Lua"},
-                     {'tech': "OpenResty"}
+                     {'tech': "OpenResty"},
+                     {'tech': "OpenGSE"},
                   ]
         },
         'tech': ["Apache Tomcat", "Java", "PHP", "Python", "Ruby on Rails", "Microsoft ASP.NET",
                  "Java Servlet", 'Ruby', "Node.js", "Ruby on Rails", "Lua", "OpenResty",
-                 "Express"]
+                 "Express", "OpenGSE"]
     },
     {
         'name': 'DataBases',
@@ -370,7 +374,7 @@ criterios = [
         },
         'tech': ["Facebook", "Twitter", "Pinterest", "Linkedin", "YouTube", "Google Plus"]
     },
-{
+    {
         'name': 'WP-Plugins',
         'query': {
                  '$or': [
@@ -503,10 +507,31 @@ criterios = [
                  "Google Font API", "Google Analytics", "Google Maps", "Google PageSpeed",
                  "DoubleClick for Publishers (DFP)"]
     }
+
+]
+cms=[
+
+    {
+        'name': 'CMSs',
+        'query': {
+                 '$or': [
+                    {'tech': 'WordPress'},
+                    {'tech': 'Drupal'},
+                    {'tech': 'Joomla'},
+                     {'tech': "Liferay"},
+                     {'tech': "Blogger"},
+                     {'tech': "OpenGSE"},
+                     {'tech': "1C-Bitrix"}
+                  ]
+        },
+        'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "OpenGSE", "1C-Bitrix"]
+    }
 ]
 
-
 for criterio in criterios:
+    if (os.path.isdir(REPORTDIR + "/" +criterio['name']) == False):
+        os.mkdir(REPORTDIR+ "/" +criterio['name'])
+    #print(criterio)
     print("Criterio: " + str(criterio['name']))
     for num in nums:
         generateAndSavePlot(num, tamanos, criterio, formats)
