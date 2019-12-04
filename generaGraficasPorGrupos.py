@@ -254,14 +254,18 @@ if (os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
 nums = [10, 50, 100, 500, 1000, 10000,
-        100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000
-        ]
+        100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
+        1100000, 1200000]
 
 #nums = [100]
-tamanos = [10, 20, 30, 40, 100]
+tamanos = [10, 20, 30, 40, 50]
 formats=['png', 'svg']
 criterios = [
-
+    {
+        'name': 'Todos',
+        'query': {},
+        'tech': None
+    },
     {
         'name': 'CMSs',
         'query': {
@@ -271,15 +275,11 @@ criterios = [
                     {'tech': 'Joomla'},
                      {'tech': "Liferay"},
                      {'tech': "Blogger"},
-                     {'tech': "1C-Bitrix"}
+                     {'tech': "1C-Bitrix"},
+                     {'tech': 'Wix'},
                   ]
         },
-        'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "1C-Bitrix"]
-    },
-    {
-        'name': 'Todos',
-        'query': {},
-        'tech': None
+        'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "1C-Bitrix", "Wix"]
     },
     {
         'name': 'Tiendas-Online',
@@ -288,11 +288,11 @@ criterios = [
                     {'tech': 'Magento'},
                     {'tech': 'WooCommerce'},
                     {'tech': 'PrestaShop'},
-                    {'tech': 'Wix'},
+
                     {'tech': "Shopify"}
                   ]
         },
-        'tech': ["Magento", "WooCommerce", "PrestaShop", "Wix", "Shopify"]
+        'tech': ["Magento", "WooCommerce", "PrestaShop", "Shopify"]
     },
     {
         'name': 'Sistemas-Operativos',
@@ -302,12 +302,13 @@ criterios = [
                     {'tech': 'Debian'},
                     {'tech': 'CentOS'},
                     {'tech': 'Fedora'},
+                     {'tech': "Gentoo"},
                     {'tech': "Red Hat"},
                     {'tech': "UNIX"},
                     {'tech': "Windows Server"}
                   ]
         },
-        'tech': ["Ubuntu", "Debian", "CentOS", "Fedora", "Red Hat", "UNIX", "Windows Server"]
+        'tech': ["Ubuntu", "Debian", "CentOS", "Fedora", "Red Hat", "UNIX", "Windows Server", "Gentoo"]
     },
     {
         'name': 'Servidores-Web',

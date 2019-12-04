@@ -174,13 +174,14 @@ class Wappalyzer(object):
         Strip out key:value pairs from the pattern and compile the regular
         expression.
         """
+        #print("Patron :" + str(pattern))
         regex, _, rest = pattern.partition('\\;')
         try:
             return re.compile(regex, re.I)
         except re.error as e:
             warnings.warn(
-                "Caught '{error}' compiling regex: {regex}"
-                .format(error=e, regex=regex)
+                "Caught '{error}' compiling regex: {regex}, pattern: {pattern}"
+                .format(error=e, regex=regex, pattern=pattern)
             )
             # regex that never matches:
             # http://stackoverflow.com/a/1845097/413622
