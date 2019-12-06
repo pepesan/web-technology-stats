@@ -342,7 +342,7 @@ def generatePlot(tech, techResults):
         )
 
 def generatePlotByTech(tech, formats):
-    techResults= Resultado.objects.filter(tech=tech).order_by('total')
+    techResults = Resultado.objects.filter(batch=BATCH, tech=tech).order_by('total')
     print(tech)
 
 

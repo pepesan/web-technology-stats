@@ -10,25 +10,33 @@ except Exception as e:
     print("No olvides arrancar la BBDD MongoDB, antes de ejecutar los scripts")
     print("Motivo: " + str(e))
 
-if(connected == True):
+if (connected == True):
     print("Se ha conectado al servidor")
 else:
     exit(0)
+
+BATCH = 1
 
 
 class Site(DynamicDocument):
     url = StringField(required=True, unique=True)
     position = DecimalField(required=True)
+    batch = DecimalField(required=True)
     retries = DecimalField(required=True, default=0)
     tech = ListField(StringField(max_length=60))
     last_search_datetime = DateTimeField(default=datetime.utcnow)
     finished = BooleanField(default=False)
     meta = {
         'indexes': [
-            'url',
+            {
+                'fields': ['url'],
+                'unique': True
+            },
             'finished',
+            'position',
             'tech',
-            'retries'
+            'retries',
+            'batch'
         ]
     }
 
@@ -38,6 +46,7 @@ class Site(DynamicDocument):
 
 class Resultado(DynamicDocument):
     tech = StringField(required=True)
+    criterio = StringField(required=True)
     total = DecimalField(required=True)
     resultPercentage = FloatField(required=True, default=0)
     position = DecimalField(required=True)
@@ -52,7 +61,8 @@ class Resultado(DynamicDocument):
             'total',
             'position',
             'batch',
-            'finished'
+            'finished',
+            'criterio'
         ]
     }
 

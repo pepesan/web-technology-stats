@@ -1,12 +1,19 @@
 # Repositorio de ejemplo de cálculo de estadísticas de tecnologías web
 El presente repositorio trata de facilitar una serie de herramientas a la hora de extraer datos de tecnologías utilizadas en las principales webs. Salió de una idea que tubo Andros Fenollosa en su artículo sobre el uso de Wordpress en Internet [https://programadorwebvalencia.com/analizando-un-millon-de-paginas-para-saber-cuanto-se-usa-wordpress-2019/](https://programadorwebvalencia.com/analizando-un-millon-de-paginas-para-saber-cuanto-se-usa-wordpress-2019/), del que he cogido también 
 ## DataSet
-El dataset utilizado es el del millón de páginas principales de internet de alexa. Concretado en el fichero top-1m.csv
+El dataset utilizado es el del millón de páginas principales de internet de alexa. Concretado en el fichero top-1m.csv y para complementar el fichero 2019-top-1m.csv
 ## Mongoengine
 La biblioteca se encargará de la definición de los modelos de la BBDD para almacenar la información de los sitios web. Están definidos en el fichero gestionaDatos.py
 ## Import
 El fichero import.py trata de importar en la bbdd mongodb una colección llamada site que registrará los sitios de internet disponibles por url
 $ python3 import.py
+### Modelo de datos
+El modelo de datos se ha estructurado de la siguente manera
+#### Sitio
+* _id: identificativo
+* url: dominio principal del sitio web, con índice único para no repetir importaciones
+* position: posición asignada según alexa
+* tech: array de  
 ## Wappalize
 Versión propia de script de python3 de la biblioteca wappalize, basada en el repositorio [https://github.com/chorsley/python-Wappalyzer](https://github.com/chorsley/python-Wappalyzer), con el conjunto de reglas de clasificación y análisis de tecnologías del repositorio de [Wappalizer](https://github.com/AliasIO/Wappalyzer), definidas en el fichero data/apps.json
 ## Lanzamiento
@@ -24,7 +31,15 @@ Se ha dejado un fichero docker compose que debería facilitar el lanzamiento de 
  * Después instalamos las dependencias:
  pip install -r requirements.txt
  * Después ejecutamos el importador: python3 import.py
- * Por fin ejecutamos el scrapper: python3 paralelo.py
+ * Por fin ejecutamos el scrapper: python3 generaGraficasPorGrupos.py
+ * También podemos generar gráficas por tecnología concreta: python3 generaGraficasPorTech.py
+## Notas:
+  * En el último caso recuerda editar para concretar que tecnología te interesa sacar la gráfica
+  * Hay en algunos casos que según en número de elementos a ordenar MongoDB da un fallo hay que mandar un comando de mongo para evitar este fallo y aumentar la memoria para ordenado:
+db.adminCommand({"setParameter": 1, "internalQueryExecMaxBlockingSortBytes" :934217728}) 
+
+Referencia:
+http://pe-kay.blogspot.com/2016/05/how-to-change-mongodbs-sort-buffer-size.html
  # Gráficas
  En el directorio report se deberán generar las gráficas de utilización teniendo en cuenta su posición en alexa
  # Ficha de la encuesta
