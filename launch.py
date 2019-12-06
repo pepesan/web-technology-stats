@@ -2,7 +2,6 @@ from gestionaDatos import *
 from pprint import pprint
 from wappalyze import Wappalyzer, WebPage
 
-
 def searchURL(url):
     try:
         wappalyzer = Wappalyzer.latest()
@@ -48,6 +47,7 @@ def insertaSitio(url, sitio):
         return None
     sitioGuardado.tech = sitio.tech
     sitioGuardado.finish = True
+    sitioGuardado.batch=BATCH
     sitioGuardado.retries += 1
     sitioGuardado.last_search_datetime = datetime.today()
     Site.objects(url=url).update(set__tech=sitioGuardado.tech, set__last_search_datetime=datetime.today(),

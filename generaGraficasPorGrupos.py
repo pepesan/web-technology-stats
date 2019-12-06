@@ -8,7 +8,6 @@ import squarify
 import plotly.graph_objects as go
 
 REPORTDIR = 'report'
-BATCH = 1
 
 """
 Para cuando falle el bloque de ordenado
@@ -21,7 +20,7 @@ http://pe-kay.blogspot.com/2016/05/how-to-change-mongodbs-sort-buffer-size.html
 
 
 def generate_sites(num, criterio):
-    sitios = Site.objects.order_by('position')[:num](position__lte=num, finished=True, tech__exists=True, __raw__=criterio['query'])
+    sitios = Site.objects.order_by('position')[:num](batch=BATCH, position__lte=num, finished=True, tech__exists=True, __raw__=criterio['query'])
     tecnologias = dict()
 
     for sitio in sitios:
@@ -229,6 +228,7 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
             except Exception as e:
                 print("resultado no encontrado")
             resultado = Resultado()
+            resultado.criterio = criterio['name']
             resultado.tech = row[1][0]
             resultado.total = num
             resultado.resultDecimal = row[1][1]
@@ -444,7 +444,6 @@ criterios = [
                      {'tech': "Plesk"},
                      {'tech': "Swiper Slider"},
                      {'tech': "MailChimp"},
-                     {'tech': "Twitter"},
                      {'tech': "prettyPhoto"},
                      {'tech': "RequireJS"},
                      {'tech': "Gravatar"},
@@ -472,7 +471,7 @@ criterios = [
                  'DataTables', "OWL Carousel", "TrackJs", "SWFObject", "Select2", "SiteGround"
                  'Modernizr', 'CloudFlare', 'reCAPTCHA', "Sucuri", "SquareSpace", "FlexSlider"
                  "Akamai", 'Varnish', "Slick", "Revslider", "OpenSSL", "Underscore.js", "FancyBox",
-                 "Liveinternet",  "Swiper Slider",  "Plesk",  "MailChimp", "Twitter", "prettyPhoto",
+                 "Liveinternet",  "Swiper Slider",  "Plesk",  "MailChimp", "prettyPhoto",
                  "RequireJS", "Gravatar", "Moment.js", "Litespeed Cache", "Polyfill", "Handlebars",
                  "comScore", "Clipboard.js", "TweenMax", "Prototype", "Lazy.js", "Ionicons", "Chart.js"]
     },
