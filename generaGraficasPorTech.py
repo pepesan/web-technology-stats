@@ -1,10 +1,5 @@
-import pandas as pd
-from bokeh.transform import factor_cmap
-
 from gestionaDatos import *
 import os
-import matplotlib.pyplot as plt
-import squarify
 import plotly.graph_objects as go
 
 REPORTDIR = 'report'

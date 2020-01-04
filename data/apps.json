@@ -1632,7 +1632,7 @@
         "x-bubble-capacity-used": "",
         "x-bubble-perf": ""
       },
-      "js":{
+      "js": {
         "bubble_environment": "",
         "bubble_hostname_modifier": "",
         "bubble_version": "",
@@ -2790,6 +2790,14 @@
       "script": "dataTables.*\\.js",
       "website": "http://datatables.net"
     },
+    "DatoCMS": {
+      "cats": [
+        1
+      ],
+      "html": "<[^>]+https://www\\.datocms-assets\\.com",
+      "icon": "datocms.svg",
+      "website": "https://www.datocms.com"
+    },
     "Day.js": {
       "cats": [
         59
@@ -2811,6 +2819,21 @@
       },
       "icon": "Debian.png",
       "website": "https://debian.org"
+    },
+    "decimal.js": {
+      "cats": [
+        59
+      ],
+      "icon": "decimal.js.png",
+      "js": {
+        "Decimal.ROUND_HALF_FLOOR": ""
+      },
+      "script": [
+        "decimal[.-]([\\d.]*\\d+)(?:\\.min)?\\.js\\;version:\\1",
+        "/([\\d.]*\\d+)/decimal(?:\\.min)?\\.js\\;version:\\1",
+        "decimal(?:\\.min)?\\.js(?:\\?ver(?:sion)?=([\\d.]*\\d+))?\\;version:\\1"
+      ],
+      "website": "https://mikemcl.github.io/decimal.js/"
     },
     "DedeCMS": {
       "cats": [
@@ -3426,6 +3449,14 @@
       },
       "script": "exhibit.*\\.js",
       "website": "http://simile-widgets.org/exhibit/"
+    },
+    "ExpertRec": {
+      "cats": [
+        29
+      ],
+      "icon": "ExpertRec.png",
+      "script": "cse\\.expertrec\\.com/api/js/ci_common\\.js\\?id=.*$",
+      "website": "https://expertrec.com"
     },
     "Express": {
       "cats": [
@@ -6562,7 +6593,6 @@
       ],
       "html": "<link[^>]* href=\"[^\"]*materialize(?:\\.min)?\\.css",
       "icon": "Materialize CSS.png",
-      "implies": "jQuery",
       "script": "materialize(?:\\.min)?\\.js",
       "website": "http://materializecss.com"
     },
@@ -7984,6 +8014,18 @@
       },
       "website": "http://orchardproject.net"
     },
+    "OrderOnline": {
+      "cats": [
+        6
+      ],
+      "icon": "OrderOnline.svg",
+      "implies": [
+        "PHP",
+        "MongoDB"
+      ],
+      "script": "^cdn\\.orderonline\\.id/$",
+      "website": "https://orderonline.id"
+    },
     "OroCommerce": {
       "cats": [
         6
@@ -8119,7 +8161,7 @@
       ],
       "icon": "Cecil.png",
       "meta": {
-        "generator": "^Cecil|PHPoole$"
+        "generator": "^Cecil(?: ([0-9.]+))?$\\;version:\\1"
       },
       "website": "https://cecil.app"
     },
@@ -9048,8 +9090,8 @@
         "Server": "Red Hat",
         "X-Powered-By": "Red Hat"
       },
-      "icon": "Red Hat.png",
-      "website": "http://redhat.com"
+      "icon": "Red Hat.svg",
+      "website": "https://www.redhat.com"
     },
     "Reddit": {
       "cats": [
@@ -9613,7 +9655,7 @@
         "Phoenix": ""
       },
       "meta": {
-        "generator": "^sazito-phoenix"
+        "generator": "^phoenix"
       },
       "implies": [
         "React",
@@ -9910,6 +9952,12 @@
         6
       ],
       "html": "<title>Shopware ([\\d\\.]+) [^<]+\\;version:\\1",
+      "headers": {
+        "sw-context-token": "^[\\w]{32}$\\;version:6",
+        "sw-language-id": "^[a-fA-F0-9]{32}$\\;version:6",
+        "sw-invalidation-states": "\\;version:6",
+        "sw-version-id": "\\;version:6"
+      },
       "icon": "Shopware.png",
       "implies": [
         "PHP",
@@ -9925,7 +9973,7 @@
         "/jquery\\.shopware\\.min\\.js",
         "/engine/Shopware/"
       ],
-      "website": "http://shopware.com"
+      "website": "https://www.shopware.com"
     },
     "Signal": {
       "cats": [
@@ -9962,6 +10010,16 @@
       },
       "implies": "PHP",
       "website": "https://www.silverstripe.org"
+    },
+    "Simbel": {
+      "cats": [
+        6
+      ],
+      "headers": {
+        "powered": "simbel"
+      },
+      "icon": "simbel.svg",
+      "website": "http://simbel.com.ar/"
     },
     "Simple Analytics": {
       "cats": [
@@ -11879,7 +11937,9 @@
         6
       ],
       "icon": "Websale.png",
-      "url": "/websale7/",
+      "cookies": {
+        "websale_ac": ""
+      },
       "website": "http://websale.de"
     },
     "Website Creator": {
@@ -12920,6 +12980,18 @@
       },
       "website": "http://esyndicat.com"
     },
+    "eZ Platform": {
+      "cats": [
+        1,
+        6
+      ],
+      "icon": "eZ.svg",
+      "implies": "Symfony",
+      "meta": {
+        "generator": "eZ Platform"
+      },
+      "website": "https://ezplatform.com/"
+    },
     "eZ Publish": {
       "cats": [
         1,
@@ -12931,12 +13003,12 @@
       "headers": {
         "X-Powered-By": "^eZ Publish"
       },
-      "icon": "eZ Publish.png",
+      "icon": "eZ.svg",
       "implies": "PHP",
       "meta": {
         "generator": "eZ Publish"
       },
-      "website": "http://ez.no"
+      "website": "https://github.com/ezsystems/ezpublish-legacy"
     },
     "ef.js": {
       "cats": [
@@ -14108,6 +14180,14 @@
       },
       "script": "/opencart_custom\\.js",
       "website": "https://onshop.asia"
+    },
+    "PageFly": {
+      "cats": [
+        51
+      ],
+      "icon": "pagefly.png",
+      "script": "pagefly\\.io",
+      "website": "https://pagefly.io"
     }
   },
   "categories": {
