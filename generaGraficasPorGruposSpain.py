@@ -12,6 +12,7 @@ REPORTDIR = 'report/spain'
 
 """
 Para cuando falle el bloque de ordenado
+
 Ejecutar directamente en mongo
 db.adminCommand({"setParameter": 1, "internalQueryExecMaxBlockingSortBytes" :134217728}) 
 
@@ -260,10 +261,7 @@ nums = [10, 50, 100, 500, 1000, 10000,
         100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
         1100000, 1200000, 1300000, 1400000]
 """
-#nums = [100]
-nums = [36200]
-tamanos = [10, 20, 30, 40, 50]
-formats=['png', 'svg']
+
 criterios = [
     {
         'name': 'Todos',
@@ -530,7 +528,10 @@ cms = [
         'tech': ["WordPress", "Drupal", "Joomla", "Liferay", "Blogger", "OpenGSE", "1C-Bitrix"]
     }
 ]
-
+#nums = [100]
+nums = [1476000]
+tamanos = [10, 20, 30, 40, 50]
+formats=['png', 'svg']
 for criterio in criterios:
     if (os.path.isdir(REPORTDIR + "/" +criterio['name']) == False):
         os.mkdir(REPORTDIR + "/" + criterio['name'])

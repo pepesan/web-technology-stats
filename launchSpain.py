@@ -1,31 +1,28 @@
-from gestionaDatos import *
+from gestionaDatosSpain import *
 from pprint import pprint
 from wappalyze import Wappalyzer, WebPage
 
 def searchURL(url):
+    wappalyzer = Wappalyzer.latest()
     try:
-        wappalyzer = Wappalyzer.latest()
         webpage = WebPage.new_from_url('https://' + url, verify=False)
         result = wappalyzer.analyze(webpage)
     except Exception as e:
         #pprint("Fallo en sitio: " + str(url))
         #print (e)
         try:
-            wappalyzer = Wappalyzer.latest()
             webpage = WebPage.new_from_url('http://' + url)
             result = wappalyzer.analyze(webpage)
         except Exception as e:
             #pprint("Fallo en sitio: " + str(url))
             #print(e)
             try:
-                wappalyzer = Wappalyzer.latest()
                 webpage = WebPage.new_from_url('https://www.' + url)
                 result = wappalyzer.analyze(webpage)
             except Exception as e:
                 # pprint("Fallo en sitio: " + str(url))
                 #print(e)
                 try:
-                    wappalyzer = Wappalyzer.latest()
                     webpage = WebPage.new_from_url('http://www.' + url)
                     result = wappalyzer.analyze(webpage)
                 except Exception as e:
@@ -49,6 +46,7 @@ def rellenaSitio(url, results):
 
 def insertaSitio(url, sitio):
     sitioGuardado = SiteSpain.objects().get(url=url)
+    #pprint("insertando sitio")
     if (sitio == None):
         return None
     sitioGuardado.tech = sitio.tech
