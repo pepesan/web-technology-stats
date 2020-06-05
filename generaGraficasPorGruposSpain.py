@@ -220,8 +220,7 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
     df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
     index = 1
-    if(criterio['name']=="Todos"):
-        for row in df.iterrows():
+    for row in df.iterrows():
             #print("Fila: "+ str(row))
             try:
                 data = ResultadoSpain.objects().get(tech=row[1][0], total=num, batch=BATCH)
@@ -245,6 +244,7 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
                 # print("Sitio Guardado: " + str(resultado))
             except Exception as e:
                 print(e)
+
 
     for tamano in tamanos:
         #print(df.head(tamano))
@@ -358,10 +358,11 @@ criterios = [
                      {'tech': "PostgreSQL"},
                      {'tech': "MariaDB"},
                      {'tech': "MongoDB"},
-                     {'tech': "Percona"}
+                     {'tech': "Percona"},
+                     {'tech': "SQLite"}
                   ]
         },
-        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona"]
+        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona", "SQLite"]
     },
     {
         'name': 'RRSS',
@@ -529,9 +530,23 @@ cms = [
     }
 ]
 #nums = [100]
-nums = [1476000]
+nums = [10,50,100,500,1000,10000,50000,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000,1100000,1200000,1300000,1400000,1500000,1600000,1700000,1800000,1900000, 2000000]
 tamanos = [10, 20, 30, 40, 50]
 formats=['png', 'svg']
+criterios = [{
+        'name': 'DataBases',
+        'query': {
+                 '$or': [
+                     {'tech': "MySQL"},
+                     {'tech': "PostgreSQL"},
+                     {'tech': "MariaDB"},
+                     {'tech': "MongoDB"},
+                     {'tech': "Percona"},
+                     {'tech': "SQLite"}
+                  ]
+        },
+        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona", "SQLite"]
+    }]
 for criterio in criterios:
     if (os.path.isdir(REPORTDIR + "/" +criterio['name']) == False):
         os.mkdir(REPORTDIR + "/" + criterio['name'])

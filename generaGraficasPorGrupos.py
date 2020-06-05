@@ -217,6 +217,7 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
     df['porcentajes'] = porcentajes
     df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
+    print(df.head())
     index = 1
     if(criterio['name']=="Todos"):
         for row in df.iterrows():
@@ -237,6 +238,8 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
             resultado.finished = True
             resultado.position = index
             resultado.batch = BATCH
+
+            #print("Resultado" + str(resultado))
             index += 1
             try:
                 resultado.save()
@@ -257,7 +260,7 @@ nums = [10, 50, 100, 500, 1000, 10000,
         100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
         1100000, 1200000, 1300000, 1400000]
 
-#nums = [100]
+
 tamanos = [10, 20, 30, 40, 50]
 formats=['png', 'svg']
 criterios = [
@@ -356,10 +359,11 @@ criterios = [
                      {'tech': "PostgreSQL"},
                      {'tech': "MariaDB"},
                      {'tech': "MongoDB"},
-                     {'tech': "Percona"}
+                     {'tech': "Percona"},
+                     {'tech': "SQLite"}
                   ]
         },
-        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona"]
+        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona", "SQLite"]
     },
     {
         'name': 'RRSS',
@@ -528,6 +532,9 @@ cms=[
     }
 ]
 
+#criterios = [{'name': 'Todos','query': {},'tech': None},]
+#nums = [100]
+BATCH = 1
 for criterio in criterios:
     if (os.path.isdir(REPORTDIR + "/" +criterio['name']) == False):
         os.mkdir(REPORTDIR+ "/" +criterio['name'])

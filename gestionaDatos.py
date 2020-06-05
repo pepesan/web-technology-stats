@@ -118,7 +118,24 @@ class ResultadoSpain(DynamicDocument):
     def __str__(self):
         return str(self.position) + ":" + str(self.tech) + ":" + str(self.resultPercentage)
 
+class TechCuantity(EmbeddedDocument):
+    name = StringField(required=True, unique=True)
+    quantity = DecimalField(required=True)
+class Tech(DynamicDocument):
+    name = StringField(required=True, unique=True)
+    related_tech = ListField(EmbeddedDocumentField(TechCuantity))
+    meta = {
+        'indexes': [
+            {
+                'fields': ['name'],
+                'unique': True
+            },
+            'related_tech',
+        ]
+    }
 
+    def __str__(self):
+        return self.name + ":" + str(self.related_tech)
 
 def buscaSitio(id):
     return Site.objects(finished=False, _id=id)

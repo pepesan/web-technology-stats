@@ -12,7 +12,7 @@ if __name__ == "__main__":
     format = "%(asctime)s: %(message)s"
     #logging.basicConfig(format=format, level=logging.INFO,datefmt="%H:%M:%S")
     for index in range(20000):
-        sites = SiteSpain.objects.order_by('url')[:100](finished=False, retries__lte=2)
+        sites = SiteSpain.objects.order_by('url')[:1000](finished=False, retries__lte=2)
         #sites = Site.objects[:100](finished=False, retries__exists=True, retries__lte=5)
         threads = list()
         for sitio in sites:
