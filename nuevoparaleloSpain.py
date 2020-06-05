@@ -23,8 +23,10 @@ if __name__ == "__main__":  # confirms that the code is under main function
             print("Motivo: " + str(e))
 
 
-        sites = SiteSpain.objects.order_by('url')[:1000](finished=False, retries__lte=2)
-        #disconnect(alias='default')
+        sites = SiteSpain.objects.order_by('url')[:100](finished=False, retries__lte=2)
+        # para saber cuando parar el proceso principal
+        if(len(sites)== 0):
+            exit(0)
 
         procs = []
 

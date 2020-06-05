@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 import squarify
 import plotly.graph_objects as go
 
-REPORTDIR = 'report'
+REPORTMAINDIR = 'report'
+REPORTDIR = 'report/world'
 
 """
 Para cuando falle el bloque de ordenado
+
 Ejecutar directamente en mongo
 db.adminCommand({"setParameter": 1, "internalQueryExecMaxBlockingSortBytes" :134217728}) 
 
@@ -19,10 +21,10 @@ http://pe-kay.blogspot.com/2016/05/how-to-change-mongodbs-sort-buffer-size.html
 """
 
 
-def generate_sites(num, criterio):
-    sitios = Site.objects.order_by('position')[:num](batch=BATCH, position__lte=num, finished=True, tech__exists=True, __raw__=criterio['query'])
+def generate_sites2(num, criterio):
+    sitios = Site.objects.order_by('last_search_datetime')[:num](batch=BATCH, finished=True, tech__exists=True, __raw__=criterio['query'])
     tecnologias = dict()
-
+    #print("sitios" + str(sitios))
     for sitio in sitios:
         for tecnologia in sitio.tech:
             try:
@@ -189,7 +191,8 @@ def generateFigureBokeh(num, df, tamano):
 
 def generateAndSavePlot(num, tamanos, criterio, formats):
     print("Número de Resultados: " + str(num))
-    df = generate_sites(num, criterio)
+    df = generate_sites2(num, criterio)
+    #printAllDF(df)
     if (criterio['tech']!= None):
         listado = {'nombre': list(), 'cantidad': list()}
         for row in df.iterrows():
@@ -217,13 +220,11 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
     df['porcentajes'] = porcentajes
     df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
-    print(df.head())
     index = 1
-    if(criterio['name']=="Todos"):
-        for row in df.iterrows():
+    for row in df.iterrows():
             #print("Fila: "+ str(row))
             try:
-                data = Resultado.objects().get(tech=row[1][0], total=num, batch=BATCH)
+                data = ResultadoSpain.objects().get(tech=row[1][0], total=num, batch=BATCH)
                 # print(data)
                 data.delete()
             except Exception as e:
@@ -234,12 +235,10 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
             resultado.total = num
             resultado.resultDecimal = row[1][1]
             resultado.resultString = row[1][2]
-            resultado.resultPercentage= row[1][3]
+            resultado.resultPercentage = row[1][3]
             resultado.finished = True
             resultado.position = index
             resultado.batch = BATCH
-
-            #print("Resultado" + str(resultado))
             index += 1
             try:
                 resultado.save()
@@ -247,22 +246,23 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
             except Exception as e:
                 print(e)
 
+
     for tamano in tamanos:
         #print(df.head(tamano))
         generateFigurePlotly(num, df, tamano, criterio, formats)
         # generateFigureBokeh(num, df, tamano)
 
-
+if (os.path.isdir(REPORTMAINDIR) == False):
+    os.mkdir(REPORTMAINDIR)
 if (os.path.isdir(REPORTDIR) == False):
     os.mkdir(REPORTDIR)
 
+"""
 nums = [10, 50, 100, 500, 1000, 10000,
         100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
         1100000, 1200000, 1300000, 1400000]
+"""
 
-
-tamanos = [10, 20, 30, 40, 50]
-formats=['png', 'svg']
 criterios = [
     {
         'name': 'Todos',
@@ -511,9 +511,8 @@ criterios = [
                  "Google Font API", "Google Analytics", "Google Maps", "Google PageSpeed",
                  "DoubleClick for Publishers (DFP)"]
     }
-
 ]
-cms=[
+cms = [
 
     {
         'name': 'CMSs',
@@ -532,12 +531,30 @@ cms=[
     }
 ]
 
-#criterios = [{'name': 'Todos','query': {},'tech': None},]
+nums = [10,50,100,500,1000,10000,50000,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000,1100000,1200000,1300000,1400000,1500000,1600000,1700000,1800000,1900000, 2000000]
+tamanos = [10, 20, 30, 40, 50]
+formats=['png', 'svg']
 #nums = [100]
 BATCH = 1
+"""
+criterios = [{
+        'name': 'DataBases',
+        'query': {
+                 '$or': [
+                     {'tech': "MySQL"},
+                     {'tech': "PostgreSQL"},
+                     {'tech': "MariaDB"},
+                     {'tech': "MongoDB"},
+                     {'tech': "Percona"},
+                     {'tech': "SQLite"}
+                  ]
+        },
+        'tech': ["MySQL", "PostgreSQL", "MariaDB", "MongoDB", "Percona", "SQLite"]
+    }]
+"""
 for criterio in criterios:
     if (os.path.isdir(REPORTDIR + "/" +criterio['name']) == False):
-        os.mkdir(REPORTDIR+ "/" +criterio['name'])
+        os.mkdir(REPORTDIR + "/" + criterio['name'])
     #print(criterio)
     print("Criterio: " + str(criterio['name']))
     for num in nums:
