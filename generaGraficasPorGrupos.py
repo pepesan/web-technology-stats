@@ -217,7 +217,7 @@ def generateAndSavePlot(num, tamanos, criterio, formats):
     df['porcentajes'] = porcentajes
     df['porcentajesFloat'] = porcentajesFloat
     df['textos'] = textos
-    print(df.head())
+    #print(df.head())
     index = 1
     if(criterio['name']=="Todos"):
         for row in df.iterrows():
