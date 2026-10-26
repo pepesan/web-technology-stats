@@ -16,3 +16,7 @@ node_modules/
 dist/
 .env
 e2e/test-results/
+
+# Listado RISP de Red.es: lleva nombre e identificación de titulares (datos personales). Va en data/dominios/
+RISP_OTROS.csv
+**/RISP*.csv

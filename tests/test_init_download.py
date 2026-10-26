@@ -119,3 +119,45 @@ def test_mongo_is_still_started_even_if_the_download_fails(box):
 def test_the_csv_is_gitignored():
     result = subprocess.run(["git", "check-ignore", "-q", "top-1m.csv"], cwd=ROOT)
     assert result.returncode == 0
+
+
+# ---------- lista de dominios .es (scripts/descargar_dominios_es.sh) ----------
+
+
+def install_es_stub(box, behaviour="ok"):
+    """Sustituye el script real por uno que registra la llamada (el real se prueba en test_dominios_es.py)."""
+    scripts = box.path / "scripts"
+    scripts.mkdir(exist_ok=True)
+    stub = scripts / "descargar_dominios_es.sh"
+    log = box.path.parent / "es_calls.txt"
+    log.write_text("")
+    body = {"ok": 'mkdir -p "$(dirname "$1")"; echo "1,a.es" > "$1"', "fail": "exit 1"}[behaviour]
+    stub.write_text(f'#!/usr/bin/env bash\necho "$@" >> "{log}"\n{body}\n')
+    stub.chmod(0o755)
+    return log
+
+
+def test_downloads_the_es_domain_list_into_an_ignored_folder(box):
+    log = install_es_stub(box)
+    result = box.run()
+    assert result.returncode == 0, result.stderr
+    assert (box.path / "data" / "dominios" / "dominios-es.csv").read_text() == "1,a.es\n"
+    assert log.read_text().split() == ["./data/dominios/dominios-es.csv"]
+
+
+def test_es_list_can_be_skipped(box):
+    log = install_es_stub(box)
+    assert box.run(SKIP_DOMINIOS_ES="1").returncode == 0
+    assert log.read_text() == "" and not (box.path / "data" / "dominios").exists()
+
+
+def test_failure_downloading_the_es_list_does_not_break_init(box):
+    install_es_stub(box, "fail")
+    result = box.run()
+    assert result.returncode == 0 and (box.path / "top-1m.csv").exists()
+    assert "dominios .es" in result.stderr.lower() or "dominios .es" in result.stdout.lower()
+
+
+def test_init_without_the_script_keeps_working_as_before(box):
+    result = box.run()  # la copia aislada no trae scripts/: no hay descarga .es ni error
+    assert result.returncode == 0 and len(box.curl()) == 1

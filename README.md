@@ -77,6 +77,10 @@ Se busca en `--config RUTA`, `WEBTECHSTATS_CONFIG`, `./webtechstats.toml` y `~/.
 - **Kernel del host (opcional, necesita `sudo`).** `host/90-webtechstats.conf` ensancha los puertos efímeros (reservando los de servicios locales, como el 27017 de MongoDB), reutiliza sockets en `TIME_WAIT` y sube el límite de `conntrack`. Se ve el efecto sin aplicar nada con `./host/aplicar_sysctl.sh --dry-run`; se instala con `sudo ./host/aplicar_sysctl.sh` y se revierte con `sudo ./host/aplicar_sysctl.sh --revert`. Hoy no hace falta: es un seguro para escalar más de 10 veces.
 - **Varios núcleos.** Los hilos de un proceso comparten el GIL y ocupan un solo núcleo; para usar más, `scan --processes P` reparte los sitios entre P procesos disjuntos, cada uno con `--workers` hilos.
 
+## Dominios `.es`
+
+La lista de dominios `.es` (Common Crawl, ~740.000) se descarga con `./00_init.sh` a `data/dominios/` (carpeta ignorada por git); `./scripts/descargar_dominios_es.sh` lo hace por separado. El listado completo de Red.es (RISP) se pide aparte y **no se versiona** por llevar datos personales. Todo en [docs/dominios-es.md](docs/dominios-es.md).
+
 ## Dashboard
 
 `dashboard/` es un proyecto uv propio: servidor FastAPI + frontend Vue 3. Muestra los resultados por tema (lenguajes de back y de front, frameworks y librerías de back y de front, bases de datos, otras tecnologías), con selector de lote, filtro por categoría, vista de tabla, el desglose analizados / pendientes / sin respuesta y un aviso mientras queden sitios por intentar. Se levanta con `compose.yaml` (puerto `DASHBOARD_PORT`, 8000 por defecto; solo en localhost salvo que `DASHBOARD_BIND` indique otra IP, p. ej. la de la LAN en un `.env` gitignorado; no tiene autenticación) o a mano con `dashboard/run.sh`. También funciona **sin base de datos**: `wts-export-report` guarda un lote como informe estático por año (y por ámbito, p. ej. solo `.es` con `--tld es`) (`reports/`, versionado en git) y la imagen `pepesan/web-stats` (`./scripts/build_static_image.sh`) lo sirve con nginx; el modo lo decide el flag `source` de `config.json`. Ver [dashboard/README.md](dashboard/README.md).
