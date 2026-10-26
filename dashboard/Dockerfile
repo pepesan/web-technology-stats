@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Build desde la raíz del repo: docker build -f dashboard/Dockerfile .
 # (el dashboard depende del paquete webtechstats del directorio padre)
 

@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Conexión perezosa a MongoDB (no se conecta al importar el módulo)."""
 
 from mongoengine import connect, disconnect, get_connection

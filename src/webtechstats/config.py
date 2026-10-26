@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Configuración: conexión a MongoDB (`[mongo]`) y escaneo (`[scan]`).
 
 Precedencia (de menor a mayor): valores por defecto < fichero TOML < variables de entorno

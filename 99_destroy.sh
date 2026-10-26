@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Detiene y elimina los contenedores. Por defecto conserva los datos (./data/mongodb o MONGO_DATA_DIR).
 # Usar --purge-data para borrar también el volumen bind (irreversible).
 set -euo pipefail

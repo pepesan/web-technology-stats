@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from gestionaDatosSpain import *
 from pprint import pprint
 from wappalyze import Wappalyzer, WebPage

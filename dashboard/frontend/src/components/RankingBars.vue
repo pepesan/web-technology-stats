@@ -1,3 +1,7 @@
+<!--
+  Autor: David Vaquero <pepesan@gmail.com>
+  Licencia: GPL-3.0-only
+-->
 <script setup>
 import { computed, ref } from 'vue'
 import { fmtInt, fmtPct } from '../format'

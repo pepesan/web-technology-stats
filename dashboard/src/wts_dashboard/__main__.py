@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Arranque: `uv run wts-dashboard [--host H] [--port P] [--reload]`."""
 
 import argparse

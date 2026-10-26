@@ -1,6 +1,10 @@
+<!--
+  Autor: David Vaquero <pepesan@gmail.com>
+  Licencia: GPL-3.0-only
+-->
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { createSource, loadConfig } from './sources'
+import { createSource, loadConfig, scopeLabel } from './sources'
 import { fmtInt, fmtPct } from './format'
 import StatTile from './components/StatTile.vue'
 import TopicTabs from './components/TopicTabs.vue'
@@ -12,6 +16,7 @@ const topLabel = (n) => (n >= 1_000_000 ? '1M' : n >= 1_000 ? `${n / 1_000}k` : 
 const source = ref(null)         // fuente de datos (informes estáticos o API), según el flag de config.json
 const options = ref([])          // informes o lotes disponibles
 const current = ref('')          // informe/lote elegido ('' = todos los lotes, solo en modo API)
+const scope = ref('')            // ámbito del informe ('all' = mundo, 'es' = España...); solo con varios ámbitos
 const top = ref('')              // '' = sin límite; N = solo posiciones <= N del ranking
 const overview = ref(null)
 const topic = ref('lang_back')
@@ -21,6 +26,10 @@ const category = ref('')
 const loading = ref(true)
 const error = ref('')
 
+const scopes = computed(() => [...new Set(options.value.map((o) => o.scope).filter(Boolean))])
+const visibleOptions = computed(() =>
+  scopes.value.length > 1 ? options.value.filter((o) => o.scope === scope.value) : options.value,
+)
 const topSteps = computed(() => (source.value ? source.value.topSteps(current.value) : []))
 const coverage = computed(() =>
   overview.value && overview.value.total
@@ -54,7 +63,10 @@ function initialCurrent(list) {
   const wanted = new URLSearchParams(window.location.search).get(source.value.param)
   if (wanted === 'all' && source.value.allValue) return ''
   if (wanted && list.some((o) => String(o.value) === wanted)) return list.find((o) => String(o.value) === wanted).value
-  return list.length ? list[list.length - 1].value : ''
+  // por defecto, el último informe del ámbito mundial (o el último que haya)
+  const world = list.filter((o) => o.scope === 'all')
+  const pool = world.length ? world : list
+  return pool.length ? pool[pool.length - 1].value : ''
 }
 function initialTop() {
   const wanted = Number(new URLSearchParams(window.location.search).get('top'))
@@ -73,11 +85,19 @@ onMounted(() =>
     source.value = createSource((await loadConfig()).source)
     options.value = await source.value.list()
     current.value = initialCurrent(options.value)
+    scope.value = options.value.find((o) => o.value === current.value)?.scope ?? scopes.value[0] ?? ''
     top.value = initialTop()
     syncUrl()
     await Promise.all([loadOverview(), loadRanking()])
   }),
 )
+watch(scope, () => {
+  // al cambiar de ámbito se abre el informe del mismo año (o el último) de ese ámbito
+  if (visibleOptions.value.some((o) => o.value === current.value)) return
+  const year = options.value.find((o) => o.value === current.value)?.year
+  const same = visibleOptions.value.find((o) => o.year === year)
+  current.value = (same ?? visibleOptions.value[visibleOptions.value.length - 1])?.value ?? current.value
+})
 watch(current, () => {
   // el corte elegido puede no existir en el otro informe
   if (top.value !== '' && !topSteps.value.includes(top.value)) top.value = ''
@@ -107,11 +127,17 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
         <p class="sub">Tecnologías detectadas en los sitios del ranking Tranco, por tema.</p>
       </div>
       <div class="filters">
+        <label class="batch" v-if="scopes.length > 1">
+          <span>Ámbito</span>
+          <select v-model="scope" aria-label="Ámbito">
+            <option v-for="s in scopes" :key="s" :value="s">{{ scopeLabel(s) }}</option>
+          </select>
+        </label>
         <label class="batch" v-if="source">
           <span>{{ source.noun }}</span>
           <select v-model="current" :aria-label="source.noun">
             <option v-if="source.allValue" :value="source.allValue.value">{{ source.allValue.label }}</option>
-            <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in visibleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
         <label class="batch">
@@ -192,7 +218,7 @@ h1 { margin: 0; font-size: 26px; line-height: 1.2; }
 h2 { margin: 0; font-size: 19px; }
 .sub { margin: 4px 0 0; color: var(--text-2); font-size: 14px; }
 .filters { display: flex; flex-wrap: wrap; gap: 12px; }
-.batch { display: inline-flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-2); }
+.batch { display: inline-flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-2); min-width: 0; max-width: 100%; }
 select {
   min-height: 44px;
   padding: 0 12px;
@@ -245,6 +271,8 @@ select {
   color: #e34948;
 }
 @media (max-width: 760px) {
+  .filters, .batch { width: 100%; }
+  .batch select { width: 100%; }
   .tiles { grid-template-columns: repeat(2, 1fr); }
   h1 { font-size: 22px; }
   .panel { padding: 12px; }

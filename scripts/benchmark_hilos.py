@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Benchmark escalonado de hilos y procesos de `webtechstats scan`.
 
 Un nivel es `PxW` (P procesos × W hilos cada uno) o solo `W` (1 proceso). Para cada nivel importa los N primeros sitios del CSV en un lote temporal propio (así todos los niveles

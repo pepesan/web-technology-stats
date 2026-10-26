@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from gestionaDatos import *
 import os
 import plotly.graph_objects as go

@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from pathlib import Path
 
 from webtechstats.config import MongoConfig

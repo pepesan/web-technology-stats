@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from webtechstats.importer import import_sites, read_top_sites
 from webtechstats.models import Site
 

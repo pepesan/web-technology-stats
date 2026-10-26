@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Clasificación de tecnologías por tema (lenguajes de back/front, BBDD, librerías...).
 
 `Site.tech` solo guarda nombres; el tema se deduce de las categorías de `apps.json`,

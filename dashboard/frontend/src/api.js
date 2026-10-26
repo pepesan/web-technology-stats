@@ -1,3 +1,5 @@
+// Autor: David Vaquero <pepesan@gmail.com>
+// Licencia: GPL-3.0-only
 async function get(path, params = {}) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {

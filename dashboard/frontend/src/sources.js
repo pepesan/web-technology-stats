@@ -1,3 +1,5 @@
+// Autor: David Vaquero <pepesan@gmail.com>
+// Licencia: GPL-3.0-only
 // Fuentes de datos del dashboard, elegidas por el flag `source` de config.json (o `?source=` en la URL):
 //  - 'reports': informes estáticos (JSON generados con wts-export-report), sin servidor ni base de datos.
 //  - 'api':     API FastAPI en vivo, por lotes.
@@ -21,6 +23,10 @@ export async function loadConfig() {
   if (forced === 'api' || forced === 'reports') source = forced
   return { source: source === 'api' ? 'api' : DEFAULT_SOURCE }
 }
+
+// Ámbito de un informe: 'all' (todo el ranking) o un TLD (p. ej. 'es' → España).
+export const SCOPE_LABELS = { all: 'Mundo', es: 'España (.es)' }
+export const scopeLabel = (scope) => SCOPE_LABELS[scope] ?? `.${scope}`
 
 export function createSource(source) {
   return source === 'api' ? apiSource() : reportsSource()
@@ -76,6 +82,8 @@ function reportsSource() {
       reports = (await getJson('reports/index.json')).reports
       return reports.map((r) => ({
         value: r.id,
+        year: r.year,
+        scope: r.scope ?? 'all',
         label: `${r.label} · ${fmtInt(r.finished)} de ${fmtInt(r.total)} analizados`,
       }))
     },

@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Infraestructura: compose.yaml, scripts de ciclo de vida de MongoDB y ajustes del host (sysctl)."""
 
 import os

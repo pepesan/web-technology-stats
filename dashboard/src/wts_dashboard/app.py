@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Aplicación FastAPI: API JSON bajo /api + frontend Vue compilado (frontend/dist)."""
 
 import os
@@ -12,6 +14,8 @@ from webtechstats.db import close_db, init_db
 from webtechstats.topics import TOPICS
 
 from .service import DashboardService
+
+TLD_PATTERN = r"^[a-z][a-z0-9-]{0,23}$"  # sin puntos ni espacios: se compara literalmente
 
 # WTS_FRONTEND_DIST permite ubicar el frontend compilado fuera del árbol del código (imagen Docker).
 FRONTEND_DIST = Path(
@@ -47,8 +51,12 @@ def create_app(connect: bool = True, cache_ttl: float = 30.0, frontend_dist: Pat
         return TOPICS
 
     @app.get("/api/overview")
-    def overview(batch: int | None = None, max_position: int | None = Query(None, ge=1)) -> dict:
-        return service.overview(batch, max_position)
+    def overview(
+        batch: int | None = None,
+        max_position: int | None = Query(None, ge=1),
+        tld: str | None = Query(None, pattern=TLD_PATTERN),
+    ) -> dict:
+        return service.overview(batch, max_position, tld)
 
     @app.get("/api/topics/{topic}")
     def topic_ranking(
@@ -57,10 +65,11 @@ def create_app(connect: bool = True, cache_ttl: float = 30.0, frontend_dist: Pat
         limit: int = Query(15, ge=1, le=500),
         category: str | None = None,
         max_position: int | None = Query(None, ge=1),
+        tld: str | None = Query(None, pattern=TLD_PATTERN),
     ) -> dict:
         if topic not in TOPICS:
             raise HTTPException(status_code=404, detail=f"Tema desconocido: {topic}")
-        return service.topic_ranking(topic, batch=batch, limit=limit, category=category, max_position=max_position)
+        return service.topic_ranking(topic, batch=batch, limit=limit, category=category, max_position=max_position, tld=tld)
 
     if frontend_dist is not None and (frontend_dist / "index.html").is_file():
         app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")

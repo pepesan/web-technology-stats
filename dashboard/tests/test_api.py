@@ -1,4 +1,7 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from conftest import seed
+from webtechstats.models import Site
 
 
 def test_topics_lists_all_topics(client):
@@ -123,3 +126,13 @@ def test_max_position_must_be_positive(client):
 
 def test_config_json_tells_the_frontend_to_use_the_api(client):
     assert client.get("/config.json").json() == {"source": "api"}
+
+
+def test_overview_and_ranking_filtered_by_tld(client):
+    Site(url="a.es", position=1, batch=1, finished=True, tech=["PHP", "MySQL"]).save()
+    Site(url="b.com", position=2, batch=1, finished=True, tech=["Go"]).save()
+    data = client.get("/api/overview", params={"batch": 1, "tld": "es"}).json()
+    assert (data["total"], data["finished"], data["tld"]) == (1, 1, "es")
+    back = client.get("/api/topics/lang_back", params={"batch": 1, "tld": "es"}).json()
+    assert [i["tech"] for i in back["items"]] == ["PHP"] and back["tld"] == "es"
+    assert client.get("/api/overview", params={"tld": "e s"}).status_code == 422

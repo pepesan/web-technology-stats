@@ -24,17 +24,21 @@ Un informe es la foto de un lote: un JSON por corte del ranking (`top-100.json`,
 uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
 ```
 
+Con `--tld es` se exporta un informe de **ámbito acotado** (solo dominios `.es` del lote), por ejemplo `--id 2026-es --tld es`. Se omiten los cortes con menos de 30 sitios analizados (los `.es` casi no llegan al Top 100/1k). El `index.json` marca cada informe con `scope` (`all` o el TLD) y el frontend muestra el selector **«Ámbito»** (Mundo / España (.es)) cuando hay más de uno; al cambiar de ámbito abre el informe del mismo año.
+
 Volver a exportar el mismo `--id` lo sustituye; ids distintos se acumulan en `index.json` (ordenados por año). Los informes se versionan en git (`reports/`): son lo único que no se regenera sin repetir el escaneo.
 
 ## Imagen Docker estática
 
-`pepesan/web-stats` (nginx + frontend + `reports/`, sin Python ni MongoDB, ~64 MB):
+`pepesan/web-stats` (nginx sin privilegios, usuario 101, puerto 8080 + frontend + `reports/`, sin Python ni MongoDB, ~64 MB):
 
 ```bash
-./60_build_static_image.sh 2026          # construye pepesan/web-stats:2026 y :latest
-./60_build_static_image.sh 2026 --push   # además las sube a Docker Hub (docker login previo)
-docker run -d -p 8080:80 pepesan/web-stats:latest   # http://localhost:8080
+./scripts/build_static_image.sh 2026          # construye pepesan/web-stats:2026 y :latest
+./scripts/build_static_image.sh 2026 --push   # además las sube a Docker Hub (docker login previo)
+docker run -d -p 8080:8080 pepesan/web-stats:latest   # http://localhost:8080
 ```
+
+E2E (Playwright + Chrome, escritorio y móvil) contra la imagen en local: `./scripts/e2e_image.sh [TAG]` (levanta un contenedor efímero y lo elimina; tests en `e2e/`, capturas en `e2e/test-results/`).
 
 `WTS_SOURCE` (`reports` por defecto, o `api`) se vuelca a `config.json` al arrancar el contenedor; cualquier otro valor cae en `reports`. Ficheros: `docker/static/{Dockerfile,nginx.conf,40-wts-config.sh}`.
 
@@ -49,5 +53,5 @@ Desarrollo: `uv run wts-dashboard --reload` y, en otra terminal, `cd frontend &&
 
 Tests: `uv run pytest` (API, con mongomock) y `cd frontend && npm test` (Vitest + jsdom).
 
-API: `GET /api/batches`, `/api/topics`, `/api/overview?batch=N`, `/api/topics/{tema}?batch=N&limit=15&category=...`. Ambos aceptan `max_position=N` para limitar el análisis a los N primeros sitios del ranking; el frontend lo ofrece como selector «Nº de sitios» (Top 100, 1k, 10k, 100k, 200k … 900k, 1M) y lo guarda en la URL (`?top=N`).
+API: `GET /api/batches`, `/api/topics`, `/api/overview?batch=N`, `/api/topics/{tema}?batch=N&limit=15&category=...`. Ambos aceptan `tld=es` (solo dominios `.es`) y `max_position=N` para limitar el análisis a los N primeros sitios del ranking; el frontend lo ofrece como selector «Nº de sitios» (Top 100, 1k, 10k, 100k, 200k … 900k, 1M) y lo guarda en la URL (`?top=N`).
 La clasificación tecnología → tema está en `src/webtechstats/topics.py`.

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Arranca MongoDB si ya fue inicializado (directorio de datos existente: ./data/mongodb o MONGO_DATA_DIR).
 # Usar 00_init.sh en el primer arranque.
 set -euo pipefail

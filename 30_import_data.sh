@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Importa el listado de dominios a MongoDB (colección `site`).
 # Uso: ./30_import_data.sh [LIMITE] [FICHERO_CSV] [BATCH]
 #   LIMITE       nº máximo de filas a importar (vacío = todas, 1 millón)

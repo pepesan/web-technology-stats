@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Los scripts .sh de carga: sintaxis y argumentos que pasan al CLI (con un `uv` falso)."""
 
 import os

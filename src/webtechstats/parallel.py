@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Escaneo en varios procesos: cada uno escanea un trozo disjunto (`position % n`) con sus propios hilos.
 
 Los hilos de Python comparten el GIL: el análisis de las páginas (parseo HTML + regex) ocupa un solo núcleo

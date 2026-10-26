@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """CLI de web-technology-stats.
 
 Ver CLI.md para la documentación detallada de cada comando.

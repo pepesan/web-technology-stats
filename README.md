@@ -79,7 +79,18 @@ Se busca en `--config RUTA`, `WEBTECHSTATS_CONFIG`, `./webtechstats.toml` y `~/.
 
 ## Dashboard
 
-`dashboard/` es un proyecto uv propio: servidor FastAPI + frontend Vue 3. Muestra los resultados por tema (lenguajes de back y de front, frameworks y librerías de back y de front, bases de datos, otras tecnologías), con selector de lote, filtro por categoría, vista de tabla, el desglose analizados / pendientes / sin respuesta y un aviso mientras queden sitios por intentar. Se levanta con `compose.yaml` (puerto `DASHBOARD_PORT`, 8000 por defecto; solo en localhost salvo que `DASHBOARD_BIND` indique otra IP, p. ej. la de la LAN en un `.env` gitignorado; no tiene autenticación) o a mano con `dashboard/run.sh`. También funciona **sin base de datos**: `wts-export-report` guarda un lote como informe estático por año (`reports/`, versionado en git) y la imagen `pepesan/web-stats` (`./60_build_static_image.sh`) lo sirve con nginx; el modo lo decide el flag `source` de `config.json`. Ver [dashboard/README.md](dashboard/README.md).
+`dashboard/` es un proyecto uv propio: servidor FastAPI + frontend Vue 3. Muestra los resultados por tema (lenguajes de back y de front, frameworks y librerías de back y de front, bases de datos, otras tecnologías), con selector de lote, filtro por categoría, vista de tabla, el desglose analizados / pendientes / sin respuesta y un aviso mientras queden sitios por intentar. Se levanta con `compose.yaml` (puerto `DASHBOARD_PORT`, 8000 por defecto; solo en localhost salvo que `DASHBOARD_BIND` indique otra IP, p. ej. la de la LAN en un `.env` gitignorado; no tiene autenticación) o a mano con `dashboard/run.sh`. También funciona **sin base de datos**: `wts-export-report` guarda un lote como informe estático por año (y por ámbito, p. ej. solo `.es` con `--tld es`) (`reports/`, versionado en git) y la imagen `pepesan/web-stats` (`./scripts/build_static_image.sh`) lo sirve con nginx; el modo lo decide el flag `source` de `config.json`. Ver [dashboard/README.md](dashboard/README.md).
+
+Informe 2026 (top 1M de Tranco: 851.742 sitios analizados), en escritorio y en móvil:
+
+<p align="center">
+  <img src="docs/img/dashboard-escritorio.png" alt="Dashboard en escritorio: tarjetas de resumen y ranking de lenguajes de back" width="62%">
+  &nbsp;
+  <img src="docs/img/dashboard-movil.png" alt="Dashboard en móvil: selectores apilados, tarjetas en dos columnas y ranking" width="24%">
+</p>
+
+Las capturas las genera el E2E de la imagen (`./scripts/e2e_image.sh`, en `e2e/test-results/`); para actualizarlas, copia `captura-escritorio.png` y `captura-movil.png` a `docs/img/`.
+
 
 ## Tests
 
@@ -98,7 +109,7 @@ dashboard/          servidor FastAPI + frontend Vue (proyecto uv propio, con su 
 legacy/             scripts originales anteriores a la reestructuración (funcionales, sin desarrollo)
 compose.yaml        MongoDB + dashboard
 reports/            informes estáticos por año (JSON, generados con wts-export-report)
-docker/static/      imagen estática pepesan/web-stats (nginx); 60_build_static_image.sh la construye
+docker/static/      imagen estática pepesan/web-stats (nginx); scripts/build_static_image.sh la construye
 ```
 
 ## Notas
@@ -111,5 +122,5 @@ docker/static/      imagen estática pepesan/web-stats (nginx); 60_build_static_
 
 ## Licencia
 
-Licenciado bajo GPL v3.
+Licenciado bajo GPL v3 (SPDX `GPL-3.0-only`); el texto completo está en [LICENSE.txt](LICENSE.txt).
 David Vaquero <pepesan-at-gmail.com>

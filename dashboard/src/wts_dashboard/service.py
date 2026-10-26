@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Consultas del dashboard: rankings de tecnologías agrupados por tema."""
 
 import time
@@ -20,7 +22,7 @@ class DashboardService:
     def __init__(self, classifier: TopicClassifier | None = None, cache_ttl: float = 30.0):
         self._classifier = classifier
         self._cache_ttl = cache_ttl
-        self._cache: dict[tuple[int | None, int | None], tuple[float, dict]] = {}
+        self._cache: dict[tuple, tuple[float, dict]] = {}
 
     @property
     def classifier(self) -> TopicClassifier:
@@ -31,16 +33,16 @@ class DashboardService:
     def batches(self) -> list[dict]:
         return batch_info()
 
-    def _load(self, batch: int | None, max_position: int | None = None) -> dict:
+    def _load(self, batch: int | None, max_position: int | None = None, tld: str | None = None) -> dict:
         """Resumen + ranking completo clasificado por tema (cacheado unos segundos)."""
-        key = (batch, max_position)
+        key = (batch, max_position, tld)
         cached = self._cache.get(key)
         if cached and time.monotonic() - cached[0] < self._cache_ttl:
             return cached[1]
-        data = summary(batch=batch, max_position=max_position)
+        data = summary(batch=batch, max_position=max_position, tld=tld)
         entries = [
             Entry(r["tech"], r["count"], self.classifier.topic(r["tech"]), self.classifier.category(r["tech"]))
-            for r in top_technologies(top=None, batch=batch, max_position=max_position)
+            for r in top_technologies(top=None, batch=batch, max_position=max_position, tld=tld)
         ]
         loaded = {"summary": data, "entries": entries}
         self._cache[key] = (time.monotonic(), loaded)
@@ -50,8 +52,8 @@ class DashboardService:
     def _pct(count: int, base: int) -> float:
         return round(100 * count / base, 1) if base else 0.0
 
-    def overview(self, batch: int | None = None, max_position: int | None = None) -> dict:
-        loaded = self._load(batch, max_position)
+    def overview(self, batch: int | None = None, max_position: int | None = None, tld: str | None = None) -> dict:
+        loaded = self._load(batch, max_position, tld)
         data, entries = loaded["summary"], loaded["entries"]
         topics = []
         for key, label in TOPICS.items():
@@ -70,6 +72,7 @@ class DashboardService:
         return {
             "batch": batch,
             "max_position": max_position,
+            "tld": tld,
             "total": data["total"],
             "finished": data["finished"],
             "pending": data["pending"],
@@ -86,10 +89,11 @@ class DashboardService:
         limit: int = 15,
         category: str | None = None,
         max_position: int | None = None,
+        tld: str | None = None,
     ) -> dict:
         """Ranking de un tema. Lanza KeyError si el tema no existe."""
         label = TOPICS[topic]
-        loaded = self._load(batch, max_position)
+        loaded = self._load(batch, max_position, tld)
         base = loaded["summary"]["finished"]
         of_topic = [e for e in loaded["entries"] if e.topic == topic]
         categories = sorted({e.category for e in of_topic if e.category})
@@ -100,6 +104,7 @@ class DashboardService:
             "label": label,
             "batch": batch,
             "max_position": max_position,
+            "tld": tld,
             "base": base,
             "total_items": len(of_topic),
             "categories": categories,

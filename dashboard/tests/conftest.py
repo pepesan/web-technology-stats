@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 import mongomock
 import pytest
 from fastapi.testclient import TestClient

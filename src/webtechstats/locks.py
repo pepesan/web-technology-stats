@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Bloqueo de escaneos: dos `scan` sobre el mismo lote a la vez se pisarían (peticiones duplicadas).
 
 Usa `flock` sobre ficheros dentro de la carpeta de logs: el sistema operativo libera el bloqueo cuando el

@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Hijos falsos para probar la orquestación multiproceso sin MongoDB (importables desde `spawn`)."""
 
 import signal

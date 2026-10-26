@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Importación de listados de dominios (formato Tranco/Alexa: rank,domain) a MongoDB."""
 
 import csv

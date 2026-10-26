@@ -1,3 +1,5 @@
+// Autor: David Vaquero <pepesan@gmail.com>
+// Licencia: GPL-3.0-only
 const intFmt = new Intl.NumberFormat('es-ES', { useGrouping: 'always' })
 const pctFmt = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 

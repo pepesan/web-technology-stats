@@ -1,7 +1,10 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 import json
 
 import pytest
 from conftest import seed
+from webtechstats.models import Site
 from wts_dashboard.report import TOP_STEPS, export_report, main
 from wts_dashboard.service import DashboardService
 
@@ -93,3 +96,41 @@ def test_cli_exports_with_arguments(db, tmp_path, monkeypatch):
     monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
     assert main(["--batch", "1", "--id", "2026", "--label", "Tranco 2026", "--year", "2026", "--out", str(tmp_path)]) == 0
     assert (tmp_path / "index.json").is_file()
+
+
+def seed_es():
+    for i in range(40):
+        Site(url=f"s{i}.es", position=i + 1, batch=5, finished=True, tech=["PHP", "MySQL"]).save()
+    Site(url="x.com", position=50, batch=5, finished=True, tech=["Go"]).save()
+    Site(url="y.es", position=60, batch=5, finished=False, retries=1).save()
+
+
+def test_tld_report_only_counts_that_tld_and_is_labelled_as_scope(service, tmp_path):
+    seed_es()
+    entry = export_report(service, "2026-es", "España 2026", batch=5, out_dir=tmp_path, year=2026, tld="es", steps=[10, 41, 100])
+    assert entry["scope"] == "es" and entry["tld"] == "es"
+    assert (entry["total"], entry["finished"], entry["failed"]) == (41, 40, 1)
+    data = read(tmp_path / "2026-es" / "top-all.json")
+    assert data["tld"] == "es" and data["summary"]["total"] == 41
+    assert "Go" not in {i["tech"] for t in data["topics"] for i in t["items"]}
+
+
+def test_tld_report_skips_cuts_with_too_few_sites(service, tmp_path):
+    seed_es()
+    entry = export_report(service, "2026-es", "España 2026", batch=5, out_dir=tmp_path, tld="es", steps=[10, 41, 100], min_sites=30)
+    # Top 10 solo tiene 10 sitios .es (< 30): se omite; Top 41 tiene 40; Top 100 supera el tamaño del lote (42).
+    assert entry["tops"] == [41]
+
+
+def test_world_report_has_scope_all(service, tmp_path):
+    seed()
+    entry = export_report(service, "2026", "Tranco 2026", batch=1, out_dir=tmp_path, year=2026)
+    assert entry["scope"] == "all" and entry["tld"] is None
+
+
+def test_cli_accepts_tld(db, tmp_path, monkeypatch):
+    seed_es()
+    monkeypatch.setattr("wts_dashboard.report.connect_db", lambda: None)
+    monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
+    assert main(["--batch", "5", "--id", "2026-es", "--tld", "es", "--out", str(tmp_path)]) == 0
+    assert read(tmp_path / "index.json")["reports"][0]["scope"] == "es"

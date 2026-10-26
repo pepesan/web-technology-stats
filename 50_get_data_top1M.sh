@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Importa y escanea el top 1 millón de dominios (carga de datos por volumen creciente).
 # Requiere MongoDB arrancado (./00_init.sh o ./01_launch.sh).
 # Uso: ./50_get_data_top1M.sh [FICHERO_CSV] [LOTE]

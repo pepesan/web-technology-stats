@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Aplica (o revierte) host/90-webtechstats.conf, ajustes del kernel para muchas conexiones simultáneas.
 #
 #   ./host/aplicar_sysctl.sh --dry-run    muestra valor actual -> propuesto; no cambia nada ni pide root

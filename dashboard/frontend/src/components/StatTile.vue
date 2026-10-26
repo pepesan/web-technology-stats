@@ -1,3 +1,7 @@
+<!--
+  Autor: David Vaquero <pepesan@gmail.com>
+  Licencia: GPL-3.0-only
+-->
 <script setup>
 defineProps({ label: String, value: String, hint: String })
 </script>

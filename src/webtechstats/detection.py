@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Escaneo de tecnologías sobre los sitios pendientes de la colección `Site`."""
 
 from collections.abc import Callable

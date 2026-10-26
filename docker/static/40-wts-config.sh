@@ -1,4 +1,6 @@
 #!/bin/sh
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Genera config.json (flag de fuente de datos del frontend) a partir de WTS_SOURCE.
 # Solo se aceptan valores conocidos: cualquier otra cosa cae en "reports" (informes estáticos).
 set -eu

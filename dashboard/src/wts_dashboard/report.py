@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Exporta un lote como informe estático: JSON con los agregados, sin MongoDB en tiempo de consulta.
 
 Por cada corte del ranking (Top 100, 1k ... 1M) y para "todos" se escribe `<id>/top-<N>.json`
@@ -40,11 +42,11 @@ def _write(path: Path, data: dict) -> None:
     tmp.replace(path)  # nunca queda un JSON a medias
 
 
-def _cut(service: DashboardService, report_id: str, batch: int, max_position: int | None) -> dict:
-    overview = service.overview(batch, max_position)
+def _cut(service: DashboardService, report_id: str, batch: int, max_position: int | None, tld: str | None = None) -> dict:
+    overview = service.overview(batch, max_position, tld)
     topics = []
     for t in overview["topics"]:
-        ranking = service.topic_ranking(t["key"], batch=batch, limit=_ALL, max_position=max_position)
+        ranking = service.topic_ranking(t["key"], batch=batch, limit=_ALL, max_position=max_position, tld=tld)
         topics.append(
             {
                 "key": t["key"],
@@ -57,6 +59,7 @@ def _cut(service: DashboardService, report_id: str, batch: int, max_position: in
     return {
         "report": report_id,
         "max_position": max_position,
+        "tld": tld,
         "summary": {
             key: overview[key]
             for key in ("total", "finished", "pending", "failed", "with_tech", "distinct_tech")
@@ -73,6 +76,8 @@ def export_report(
     out_dir: Path,
     year: int | None = None,
     steps: list[int] | None = None,
+    tld: str | None = None,
+    min_sites: int | None = None,
 ) -> dict:
     """Escribe el informe del lote y actualiza `index.json`. Devuelve la entrada del índice."""
     if not _ID.match(report_id or ""):
@@ -81,10 +86,19 @@ def export_report(
     if info is None:
         raise ValueError(f"el lote {batch} no existe o está vacío")
     out_dir = Path(out_dir)
-    tops = [n for n in (TOP_STEPS if steps is None else steps) if n <= info["total"]]
-    for n in tops:
-        _write(out_dir / report_id / f"top-{n}.json", _cut(service, report_id, batch, n))
-    _write(out_dir / report_id / "top-all.json", _cut(service, report_id, batch, None))
+    # Con un tld (p. ej. es) los primeros cortes casi no tienen sitios: se omiten los de menos de `min_sites`.
+    min_sites = (30 if tld else 0) if min_sites is None else min_sites
+    tops = []
+    for n in (TOP_STEPS if steps is None else steps):
+        if n > info["total"]:
+            continue
+        cut = _cut(service, report_id, batch, n, tld)
+        if cut["summary"]["finished"] >= max(min_sites, 1):
+            _write(out_dir / report_id / f"top-{n}.json", cut)
+            tops.append(n)
+    everything = _cut(service, report_id, batch, None, tld)
+    _write(out_dir / report_id / "top-all.json", everything)
+    totals = everything["summary"]
 
     entry = {
         "id": report_id,
@@ -93,9 +107,11 @@ def export_report(
         "batch": batch,
         "generated": datetime.now().replace(microsecond=0).isoformat(),
         "last_activity": info["last_activity"],
-        "total": info["total"],
-        "finished": info["finished"],
-        "failed": info["failed"],
+        "scope": tld or "all",
+        "tld": tld,
+        "total": totals["total"],
+        "finished": totals["finished"],
+        "failed": totals["failed"],
         "tops": tops,
     }
     index_path = out_dir / "index.json"
@@ -112,12 +128,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--id", required=True, help="identificador del informe (nombre de carpeta), p. ej. 2026")
     parser.add_argument("--label", help="etiqueta visible (por defecto, el identificador)")
     parser.add_argument("--year", type=int, help="año del informe (por defecto, el actual)")
+    parser.add_argument("--tld", help="solo dominios .TLD (p. ej. es); genera un informe de ámbito acotado")
     parser.add_argument("--out", default="reports", help="carpeta de salida (por defecto ./reports)")
     args = parser.parse_args(argv)
     connect_db()
     try:
         entry = export_report(
-            DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year
+            DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year, tld=args.tld
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

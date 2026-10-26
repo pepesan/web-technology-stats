@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Imagen Docker estática (pepesan/web-stats): nginx + frontend compilado + informes JSON, sin base de datos."""
 
 import os
@@ -16,10 +18,10 @@ ENTRYPOINT = DOCKER / "40-wts-config.sh"
 def test_dockerfile_builds_the_frontend_and_serves_it_with_pinned_nginx():
     text = (DOCKER / "Dockerfile").read_text()
     froms = re.findall(r"^FROM (\S+)", text, re.M)
-    assert froms[0].startswith("node:") and froms[-1].startswith("nginx:")
+    assert froms[0].startswith("node:") and froms[-1].startswith("nginxinc/nginx-unprivileged:")
     assert all(not f.endswith((":latest", ":alpine", ":lts")) for f in froms)  # versiones fijadas
     assert "npm run build" in text
-    assert "COPY reports" in text and "/usr/share/nginx/html/reports" in text
+    assert re.search(r"^COPY (--chown=\S+ )?reports /usr/share/nginx/html/reports", text, re.M)
     assert "40-wts-config.sh" in text and "docker-entrypoint.d" in text
     assert "HEALTHCHECK" in text
 
@@ -60,7 +62,8 @@ def test_entrypoint_writes_only_known_sources(tmp_path, value, expected):
 def test_build_script_tags_image_and_only_pushes_when_asked(tmp_path):
     box = tmp_path / "box"
     (box / "bin").mkdir(parents=True)
-    shutil.copy(ROOT / "60_build_static_image.sh", box)
+    (box / "scripts").mkdir()
+    shutil.copy(ROOT / "scripts" / "build_static_image.sh", box / "scripts")
     (box / "reports").mkdir()
     (box / "reports" / "index.json").write_text("{}")
     log = box / "docker.log"
@@ -69,21 +72,40 @@ def test_build_script_tags_image_and_only_pushes_when_asked(tmp_path):
     fake.chmod(0o755)
     env = {"PATH": f"{box / 'bin'}:{os.environ['PATH']}", "HOME": str(tmp_path)}
 
-    subprocess.run(["bash", str(box / "60_build_static_image.sh"), "2026"], check=True, env=env, cwd=box, capture_output=True)
+    subprocess.run(["bash", str(box / "scripts" / "build_static_image.sh"), "2026"], check=True, env=env, cwd=box, capture_output=True)
     calls = log.read_text().splitlines()
     assert any(c.startswith("build") and "pepesan/web-stats:2026" in c and "pepesan/web-stats:latest" in c for c in calls)
     assert not any(c.startswith("push") for c in calls)
 
     log.unlink()
-    subprocess.run(["bash", str(box / "60_build_static_image.sh"), "2026", "--push"], check=True, env=env, cwd=box, capture_output=True)
+    subprocess.run(["bash", str(box / "scripts" / "build_static_image.sh"), "2026", "--push"], check=True, env=env, cwd=box, capture_output=True)
     pushed = [c for c in log.read_text().splitlines() if c.startswith("push")]
     assert pushed == ["push pepesan/web-stats:2026", "push pepesan/web-stats:latest"]
 
 
 def test_build_script_refuses_to_build_without_reports(tmp_path):
     box = tmp_path / "box"
-    box.mkdir()
-    shutil.copy(ROOT / "60_build_static_image.sh", box)
-    done = subprocess.run(["bash", str(box / "60_build_static_image.sh")], cwd=box, capture_output=True, text=True,
+    (box / "scripts").mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "build_static_image.sh", box / "scripts")
+    done = subprocess.run(["bash", str(box / "scripts" / "build_static_image.sh")], cwd=box, capture_output=True, text=True,
                           env={"PATH": os.environ["PATH"], "HOME": str(tmp_path)})
     assert done.returncode != 0 and "reports" in done.stderr
+
+
+def test_image_runs_as_non_root_on_an_unprivileged_port():
+    text = (DOCKER / "Dockerfile").read_text()
+    assert re.search(r"^USER (101|nginx)\s*$", text, re.M)  # Trivy DS-0002
+    assert "EXPOSE 8080" in text and "127.0.0.1:8080/" in text
+    assert re.search(r"listen\s+8080;", (DOCKER / "nginx.conf").read_text())
+
+
+def test_config_json_is_prepared_writable_for_the_non_root_user():
+    text = (DOCKER / "Dockerfile").read_text()
+    assert "--chown=101:101" in text and "config.json" in text
+
+
+def test_base_os_packages_are_upgraded_and_the_final_user_is_not_root():
+    text = (DOCKER / "Dockerfile").read_text()
+    assert "apk upgrade --no-cache" in text
+    users = re.findall(r"^USER (\S+)", text, re.M)
+    assert users[-1] in {"101", "nginx"}  # tras el upgrade (root) se vuelve al usuario sin privilegios

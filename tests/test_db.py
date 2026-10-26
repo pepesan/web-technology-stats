@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 from webtechstats import db
 from webtechstats.config import MongoConfig
 

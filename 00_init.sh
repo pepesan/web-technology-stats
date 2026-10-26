@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 # Primer arranque: crea el directorio de datos (bind mount), levanta MongoDB en segundo plano,
 # espera a que esté listo y descarga top-1m.csv (lista Tranco) si no lo tenemos. Idempotente.
 #   MONGO_DATA_DIR  directorio de datos de MongoDB (por defecto ./data/mongodb)

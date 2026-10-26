@@ -1,3 +1,5 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """`00_init.sh` descarga top-1m.csv (Tranco) si no existe. Siempre en una copia aislada, con curl y docker falsos."""
 
 import os

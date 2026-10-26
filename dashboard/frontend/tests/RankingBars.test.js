@@ -1,3 +1,5 @@
+// Autor: David Vaquero <pepesan@gmail.com>
+// Licencia: GPL-3.0-only
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import RankingBars from '../src/components/RankingBars.vue'

@@ -1,6 +1,8 @@
 [project]
 name = "web-technology-stats"
 version = "0.2.0"
+license = "GPL-3.0-only"
+license-files = ["LICENSE.txt"]
 requires-python = ">=3.14"
 dependencies = [
     "beautifulsoup4>=4.15.0",

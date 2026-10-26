@@ -1,16 +1,27 @@
+# Autor: David Vaquero <pepesan@gmail.com>
+# Licencia: GPL-3.0-only
 """Agregados sobre la colección `Site`."""
+
+import re
 
 from .models import Site
 
 
-def summary(batch: int | None = None, max_position: int | None = None) -> dict:
+def _tld_regex(tld: str) -> str:
+    """Dominios que terminan en `.<tld>` (el tld se escapa: se compara literalmente)."""
+    return rf"\.{re.escape(tld.lstrip('.'))}$"
+
+
+def summary(batch: int | None = None, max_position: int | None = None, tld: str | None = None) -> dict:
     """Totales de todos los lotes, o solo del lote indicado.
 
-    `max_position` limita a los sitios del top N del ranking (`position <= N`).
+    `max_position` limita a los sitios del top N del ranking (`position <= N`) y `tld` a los dominios `.tld`.
     """
     sites = Site.objects if batch is None else Site.objects(batch=batch)
     if max_position is not None:
         sites = sites(position__lte=max_position)
+    if tld:
+        sites = sites(url=re.compile(_tld_regex(tld)))
     total = sites.count()
     finished = sites(finished=True).count()
     failed = sites(finished=False, retries__gt=0).count()  # intentados sin éxito ("sin respuesta")
@@ -59,11 +70,15 @@ def batch_info() -> list[dict]:
     ]
 
 
-def top_technologies(top: int | None = 20, batch: int | None = None, max_position: int | None = None) -> list[dict]:
-    """Ranking de tecnologías; `top=None` devuelve todas. `max_position` limita al top N del ranking."""
+def top_technologies(
+    top: int | None = 20, batch: int | None = None, max_position: int | None = None, tld: str | None = None
+) -> list[dict]:
+    """Ranking de tecnologías; `top=None` devuelve todas. `max_position` limita al top N del ranking y `tld` a `.tld`."""
     match = {"finished": True} if batch is None else {"finished": True, "batch": batch}
     if max_position is not None:
         match["position"] = {"$lte": max_position}
+    if tld:
+        match["url"] = {"$regex": _tld_regex(tld)}
     pipeline = [
         {"$match": match},
         {"$unwind": "$tech"},

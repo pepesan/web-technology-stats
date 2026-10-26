@@ -87,4 +87,12 @@ Comando aparte, del proyecto `dashboard/` (no del CLI `webtechstats`): guarda un
 uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
 ```
 
-`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual) y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
+`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--tld` (p. ej. `es`: solo esos dominios, informe de ámbito acotado) y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
+
+Gráficas para el blog (SVG + PNG) a partir de esos informes, sin MongoDB:
+
+```bash
+uv run python scripts/generate_blog_charts.py --blog ~/WebstormProjects/blogv2
+```
+
+Escribe en `<blog>/src/content/blog/AAAA/MM/AAAA-MM-DD-<slug>/images/` (patrón año y mes) las imágenes de la serie definida en `scripts/generate_blog_charts.py`.

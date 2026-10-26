@@ -1,3 +1,5 @@
+// Autor: David Vaquero <pepesan@gmail.com>
+// Licencia: GPL-3.0-only
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App.vue'
@@ -272,5 +274,56 @@ describe('App con informes estáticos (flag source=reports)', () => {
     await flushPromises()
     expect(w.find('select[aria-label="Lote"]').exists()).toBe(true)
     expect(w.text()).toContain('Go')
+  })
+
+  describe('ámbito (mundo / España)', () => {
+    const withScopes = () => ({
+      ...routes(),
+      'reports/index.json': { reports: [
+        { id: '2026', label: 'Tranco 2026 · mundo', year: 2026, scope: 'all', batch: 1, total: 1000, finished: 900, failed: 100, tops: [100, 1000] },
+        { id: '2026-es', label: 'Tranco 2026 · España', year: 2026, scope: 'es', tld: 'es', batch: 1, total: 50, finished: 40, failed: 10, tops: [1000] },
+        { id: '2025-es', label: 'Tranco 2025 · España', year: 2025, scope: 'es', tld: 'es', batch: 1, total: 40, finished: 30, failed: 10, tops: [] },
+      ] },
+      'reports/2026-es/top-all.json': { ...cutFile(null, 40), report: '2026-es', tld: 'es' },
+      'reports/2026-es/top-1000.json': { ...cutFile(1000, 35), report: '2026-es', tld: 'es' },
+    })
+
+    it('sin varios ámbitos no se muestra el selector', async () => {
+      mockApi(routes())
+      const w = mount(App)
+      await flushPromises()
+      expect(w.find('select[aria-label="Ámbito"]').exists()).toBe(false)
+    })
+
+    it('con varios ámbitos lista Mundo y España y solo los informes del ámbito activo', async () => {
+      mockApi(withScopes())
+      const w = mount(App)
+      await flushPromises()
+      const scope = w.find('select[aria-label="Ámbito"]')
+      expect(scope.findAll('option').map((o) => o.text())).toEqual(['Mundo', 'España (.es)'])
+      expect(scope.element.value).toBe('all')
+      expect(w.find('select[aria-label="Informe"]').findAll('option')).toHaveLength(1)
+    })
+
+    it('al elegir España abre el informe del mismo año y carga sus ficheros', async () => {
+      mockApi(withScopes())
+      const w = mount(App)
+      await flushPromises()
+      await w.find('select[aria-label="Ámbito"]').setValue('es')
+      await flushPromises()
+      expect(w.find('select[aria-label="Informe"]').element.value).toBe('2026-es')
+      expect(w.find('select[aria-label="Informe"]').findAll('option')).toHaveLength(2)
+      expect(fetch.mock.calls.map((c) => c[0])).toContain('reports/2026-es/top-all.json')
+      expect(new URLSearchParams(window.location.search).get('report')).toBe('2026-es')
+    })
+
+    it('una URL con ?report=2026-es abre directamente el ámbito España', async () => {
+      mockApi(withScopes())
+      window.history.replaceState(null, '', '/?report=2026-es')
+      const w = mount(App)
+      await flushPromises()
+      expect(w.find('select[aria-label="Ámbito"]').element.value).toBe('es')
+      expect(w.find('select[aria-label="Informe"]').element.value).toBe('2026-es')
+    })
   })
 })
