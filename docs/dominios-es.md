@@ -50,10 +50,21 @@ uv run --project dashboard wts-export-report --batch 3 --id 2026-es-cc --label "
 ## 2. Red.es: listado RISP (completo)
 
 Red.es es el registro de los `.es`. Su listado de dominios para reutilización (RISP, Ley 37/2007 de reutilización de la
-información del sector público) **no es de descarga libre**: hay que solicitarlo mediante un trámite de su sede electrónica
-(«solicitud de acceso al listado de dominios RISP», en `sede.red.gob.es`; comprueba allí el procedimiento y las condiciones
-vigentes) y aceptar sus condiciones de uso. Es la copia que se usó para el estudio de 2020: ~1,9 M de dominios con tres
-columnas separadas por `|`: `NOMBRE_DOMINIO`, `NOMBRE_TITULAR`, `IDENTIFICACION`.
+información del sector público) **no es de descarga libre, pero lo puede pedir cualquier ciudadano** mediante un trámite de
+su sede electrónica. Pasos (según la página del trámite, <https://sede.red.gob.es/es/procedimientos/solicitud-acceso-listado-dominios-risp>):
+
+1. Abre el trámite: <https://sede.red.gob.es/oficina/tramites/altaSolicitud.do?proc=RISP&codArea=DOMINIOS> y rellena la solicitud.
+2. El fichero **se actualiza una vez al mes** y no se tramitan solicitudes hasta que se haya hecho esa actualización.
+3. **Entre dos solicitudes deben pasar al menos 30 días.**
+4. Cuando se tramita, el fichero **queda disponible 5 días** para descargarlo: descárgalo enseguida.
+5. Es un fichero de texto. Para personas jurídicas incluye dominio, nombre del titular y NIF; para personas físicas, los datos
+   del dominio.
+6. Dudas: soporte de la sede, `soporte.sede@red.es`, 900 903 601 (laborables, 9:00–18:00).
+
+Qué **no** consta en esa página y conviene confirmar al hacer la solicitud: si hace falta certificado digital o Cl@ve para
+presentarla, qué campos y documentación pide el formulario, y las condiciones de uso o licencia del fichero (relevantes antes
+de redistribuir nada derivado). Es la copia que se usó para el estudio de 2020: ~1,9 M de dominios con tres columnas
+separadas por `|`: `NOMBRE_DOMINIO`, `NOMBRE_TITULAR`, `IDENTIFICACION`.
 
 **Contiene datos personales** (nombre del titular y su CIF/NIF/NIE). Por eso:
 
