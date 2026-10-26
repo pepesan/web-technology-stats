@@ -1,0 +1,34 @@
+[project]
+name = "webtechstats-dashboard"
+version = "0.1.0"
+description = "Servidor (FastAPI) y frontend (Vue) para visualizar los datos de web-technology-stats por tema."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.162.0",
+    "uvicorn>=0.54.0",
+    "web-technology-stats",
+]
+
+[tool.uv.sources]
+web-technology-stats = { path = "..", editable = true }
+
+[project.scripts]
+wts-dashboard = "wts_dashboard.__main__:main"
+wts-export-report = "wts_dashboard.report:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wts_dashboard"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mongomock>=4.3.0",
+    "pytest>=8.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

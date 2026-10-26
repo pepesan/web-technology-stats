@@ -1,0 +1,16 @@
+.git
+.venv
+**/.venv
+**/node_modules
+**/dist
+data
+logs
+report
+legacy
+tests
+dashboard/tests
+webtechstats.toml
+**/__pycache__
+*.csv
+.idea
+.env

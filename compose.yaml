@@ -1,0 +1,50 @@
+services:
+  mongodb:
+    image: mongo:9.0.4
+    container_name: webtechstats-mongodb
+    restart: unless-stopped
+    # La base es pequeña (cientos de MB): se acota la caché en vez de dejar que tome ~50 % de la RAM del host.
+    command: mongod --auth --wiredTigerCacheSizeGB 4
+    ulimits:
+      # Con el nofile por defecto del contenedor (1024) MongoDB solo admite ~400 conexiones.
+      nofile:
+        soft: 64000
+        hard: 64000
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-mongodbuser}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-mongodbuser}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-webstats}
+    volumes:
+      # Fuera de ~/Dropbox conviene: MONGO_DATA_DIR=/ruta/fuera/de/dropbox/mongodb
+      - ${MONGO_DATA_DIR:-./data/mongodb}:/data/db
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    healthcheck:
+      test: >
+        mongosh --quiet
+        -u ${MONGO_USER:-mongodbuser} -p ${MONGO_PASSWORD:-mongodbuser}
+        --authenticationDatabase admin
+        --eval "db.adminCommand('ping')"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: webtechstats-dashboard
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      # Dentro de la red de compose MongoDB se alcanza por el nombre del servicio y su puerto interno.
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+      MONGO_USER: ${MONGO_USER:-mongodbuser}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:-mongodbuser}
+      MONGO_DB: ${MONGO_DB:-webstats}
+    ports:
+      # Solo en localhost: el dashboard no tiene autenticación.
+      - "${DASHBOARD_BIND:-127.0.0.1}:${DASHBOARD_PORT:-8000}:8000"

@@ -1,8 +1,8 @@
 import json
+import os
 import re
 import warnings
 import logging
-import pkg_resources
 import requests
 from urllib3.exceptions import InsecureRequestWarning
 from requests.adapters import HTTPAdapter
@@ -120,12 +120,10 @@ class Wappalyzer(object):
         Construct a Wappalyzer instance using a apps db path passed in via
         apps_file, or alternatively the default in data/apps.json
         """
-        if apps_file:
-            with open(apps_file, 'r') as fd:
-                obj = json.load(fd)
-        else:
-            apps_data = pkg_resources.resource_string(__name__, "data/apps.json")
-            obj = json.loads(apps_data.decode('utf-8'))
+        if not apps_file:
+            apps_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "apps.json")
+        with open(apps_file, 'r') as fd:
+            obj = json.load(fd)
 
         return cls(categories=obj['categories'], apps=obj['apps'])
 

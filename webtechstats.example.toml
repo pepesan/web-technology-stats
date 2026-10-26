@@ -1,0 +1,26 @@
+# Copia este fichero a `webtechstats.toml` (ignorado por git) y ajusta los valores.
+# También se busca en ~/.config/webtechstats/config.toml, o se indica con
+# `webtechstats --config RUTA ...` / la variable WEBTECHSTATS_CONFIG.
+# Las variables de entorno (MONGO_*, SCAN_WORKERS) tienen prioridad sobre este fichero.
+
+[mongo]
+host = "localhost"
+port = 27017
+db = "webstats"
+username = "mongodbuser"
+password = "mongodbuser"
+auth_source = "admin"
+max_pool_size = 10   # conexiones máximas a MongoDB por proceso (pymongo usa 100 por defecto)
+
+[scan]
+# Peticiones HTTP simultáneas durante `webtechstats scan` (por defecto 4).
+# `webtechstats scan --workers N` (o WORKERS=N en los scripts) tiene prioridad sobre este valor.
+workers = 4
+# Un sitio que falla este número de veces deja de reintentarse (dominios de infraestructura sin web).
+# `scan --max-retries N` tiene prioridad.
+max_retries = 10
+
+[log]
+# El CLI escribe su log (con rotación) en <dir>/webtechstats_<comando>_batch-<N>_<fecha>.log (uno por ejecución). `--log-level` tiene prioridad.
+dir = "logs"
+level = "INFO"   # DEBUG, INFO, WARNING o ERROR (DEBUG añade una línea por sitio escaneado)
