@@ -32,16 +32,16 @@ class Post:
 
 
 SERIES = [
-    Post(date(2026, 11, 2), "estudio-tecnologias-top-millon-tranco-2026", "Estudio 2026: qué tecnologías usa el millón de webs más visitadas"),
-    Post(date(2026, 11, 9), "lenguajes-backend-top-millon-2026", "Lenguajes de backend en el millón de webs más visitadas (2026)"),
-    Post(date(2026, 11, 16), "frameworks-frontend-top-millon-2026", "Frameworks y librerías de frontend en el top 1M (2026)"),
-    Post(date(2026, 11, 23), "bases-de-datos-top-millon-2026", "Bases de datos en el millón de webs más visitadas (2026)"),
-    Post(date(2026, 11, 30), "frameworks-backend-top-millon-2026", "Frameworks de backend en el top 1M (2026)"),
-    Post(date(2026, 12, 7), "cms-wordpress-top-millon-2026", "WordPress y los CMS en el millón de webs más visitadas (2026)"),
-    Post(date(2026, 12, 14), "servidores-web-cdn-top-millon-2026", "Servidores web y CDN en el top 1M (2026)"),
-    Post(date(2026, 12, 21), "espana-dominios-es-top-millon-2026", "Las tecnologías de los dominios .es del top 1M (2026)"),
-    Post(date(2027, 1, 11), "como-se-escanea-un-millon-de-webs", "Cómo escanear un millón de webs en menos de 7 horas"),
-    Post(date(2027, 1, 18), "de-alexa-2020-a-tranco-2026-que-ha-cambiado", "De Alexa 2020 a Tranco 2026: qué ha cambiado"),
+    Post(date(2026, 10, 26), "estudio-tecnologias-top-millon-tranco-2026", "Estudio 2026: qué tecnologías usa el millón de webs más visitadas"),
+    Post(date(2026, 10, 26), "lenguajes-backend-top-millon-2026", "Lenguajes de backend en el millón de webs más visitadas (2026)"),
+    Post(date(2026, 10, 26), "frameworks-frontend-top-millon-2026", "Frameworks y librerías de frontend en el top 1M (2026)"),
+    Post(date(2026, 10, 26), "bases-de-datos-top-millon-2026", "Bases de datos en el millón de webs más visitadas (2026)"),
+    Post(date(2026, 10, 26), "frameworks-backend-top-millon-2026", "Frameworks de backend en el top 1M (2026)"),
+    Post(date(2026, 10, 26), "cms-wordpress-top-millon-2026", "WordPress y los CMS en el millón de webs más visitadas (2026)"),
+    Post(date(2026, 10, 26), "servidores-web-cdn-top-millon-2026", "Servidores web y CDN en el top 1M (2026)"),
+    Post(date(2026, 10, 26), "espana-dominios-es-top-millon-2026", "Las tecnologías de los dominios .es del top 1M (2026)"),
+    Post(date(2026, 10, 26), "como-se-escanea-un-millon-de-webs", "Cómo escanear un millón de webs en menos de 7 horas"),
+    Post(date(2026, 10, 26), "de-alexa-2020-a-tranco-2026-que-ha-cambiado", "De Alexa 2020 a Tranco 2026: qué ha cambiado"),
 ]
 
 

@@ -118,7 +118,7 @@ def test_series_is_a_well_formed_plan():
     slugs = [p.slug for p in gen.SERIES]
     dates = [p.date for p in gen.SERIES]
     assert len(slugs) == len(set(slugs)) == 10
-    assert dates == sorted(dates) and dates[0] >= date(2026, 11, 1)
+    assert dates == sorted(dates) and dates[0] >= date(2026, 10, 26)
     assert all(slug and slug == slug.lower() and " " not in slug for slug in slugs)
 
 
@@ -131,7 +131,7 @@ def test_series_generates_every_image_in_year_month_folders(tmp_path):
 
     written = gen.generate(tmp_path, REAL.parent, benchmark_csv=None, only={"lenguajes-backend-top-millon-2026"})
     files = [f for fs in written.values() for f in fs]
-    assert files and all("/src/content/blog/2026/11/2026-11-09-" in f.as_posix() and "/images/" in f.as_posix() for f in files)
+    assert files and all("/src/content/blog/2026/10/2026-10-26-" in f.as_posix() and "/images/" in f.as_posix() for f in files)
     assert {f.suffix for f in files} == {".svg", ".png"}
 
 
