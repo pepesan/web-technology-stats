@@ -65,3 +65,50 @@ def test_ensure_schema_migrates_legacy_unique_url_index(db):
     Site(url="a.com", position=1, batch=1).save()
     Site(url="a.com", position=1, batch=2).save()
     assert Site.objects(url="a.com").count() == 2
+
+
+# ---------- importación única de varios ficheros (dominios .es) ----------
+
+
+def _write(path, text):
+    path.write_text(text)
+    return path
+
+
+def test_unique_import_merges_files_without_repeating_domains(db, tmp_path):
+    cc = _write(tmp_path / "cc.csv", "1,a.es\n2,b.es\n3,A.es\n")
+    risp = _write(tmp_path / "risp.csv", '"NOMBRE_DOMINIO"|"NOMBRE_TITULAR"|"IDENTIFICACION"\n'
+                                         '"b.es"|"Titular S.L."|"B123"\n"c.es"|"Otro"|"X1"\n')
+    result = import_sites([cc, risp], batch=3, unique=True)
+    assert sorted(s.url for s in Site.objects(batch=3)) == ["a.es", "b.es", "c.es"]
+    assert (result.imported, result.skipped_existing) == (3, 2)
+    assert sorted(s.position for s in Site.objects(batch=3)) == [1, 2, 3]  # posición = orden de aparición
+
+
+def test_unique_import_skips_domains_already_in_any_batch(db, tmp_path):
+    import_sites(_write(tmp_path / "top.csv", "1,google.es\n2,x.com\n"), batch=1)
+    new = _write(tmp_path / "nuevo.csv", "1,google.es\n2,nuevo.es\n")
+    result = import_sites([new], batch=3, unique=True)
+    assert [s.url for s in Site.objects(batch=3)] == ["nuevo.es"]
+    assert result.imported == 1 and result.skipped_existing == 1
+
+
+def test_unique_import_is_idempotent(db, tmp_path):
+    f = _write(tmp_path / "a.csv", "1,a.es\n2,b.es\n")
+    import_sites([f], batch=3, unique=True)
+    assert import_sites([f], batch=3, unique=True).imported == 0
+    assert Site.objects.count() == 2
+
+
+def test_risp_holder_data_is_never_stored(db, tmp_path):
+    risp = _write(tmp_path / "r.csv", '"NOMBRE_DOMINIO"|"NOMBRE_TITULAR"|"IDENTIFICACION"\n'
+                                      '"x.es"|"Persona Fisica"|"12345678Z"\n')
+    import_sites([risp], batch=4, unique=True)
+    raw = str(Site._get_collection().find_one({"url": "x.es"}))
+    assert "Persona" not in raw and "12345678Z" not in raw
+
+
+def test_unique_import_continues_positions_after_the_batch_maximum(db, tmp_path):
+    import_sites(_write(tmp_path / "top.csv", "1,a.com\n2,b.com\n"), batch=1)
+    import_sites([_write(tmp_path / "es.csv", "1,c.es\n2,d.es\n")], batch=1, unique=True)
+    assert {s.url: s.position for s in Site.objects(batch=1)} == {"a.com": 1, "b.com": 2, "c.es": 3, "d.es": 4}

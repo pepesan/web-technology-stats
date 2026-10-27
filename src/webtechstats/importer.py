@@ -43,6 +43,62 @@ def read_top_sites(csv_path: str | Path, limit: int | None = None) -> Iterator[t
             yield position, url
 
 
+def read_domains(path: str | Path) -> Iterator[str]:
+    """Dominios de un fichero `posicion,dominio` o del listado RISP de Red.es (columnas separadas por `|`).
+    De RISP solo se lee la primera columna (el dominio): nombre del titular e identificación se descartan."""
+    with open(path, newline="", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if "|" in line:
+                domain = line.split("|", 1)[0]
+            else:
+                parts = line.split(",")
+                if len(parts) < 2:
+                    continue
+                domain = parts[1]
+            domain = domain.strip().strip('"').strip().lower().rstrip(".")
+            if domain and domain != "nombre_dominio":
+                yield domain
+
+
+def _known_urls() -> set[str]:
+    """Dominios que ya hay en la BBDD, en cualquier lote."""
+    return {d["url"] for d in Site._get_collection().find({}, {"url": 1, "_id": 0})}
+
+
+def _import_unique(paths: list, limit: int | None, batch: int) -> "ImportResult":
+    """Une varios ficheros en un lote sin repetir dominios: ni entre ficheros ni respecto a lo ya guardado."""
+    result = ImportResult()
+    seen = _known_urls()
+    chunk: list[dict] = []
+    now = datetime.now(timezone.utc)
+    last = next(Site._get_collection().find({"batch": batch}, {"position": 1}).sort("position", -1).limit(1), None)
+    position = (last or {}).get("position") or 0  # las altas continúan tras la última posición del lote
+    for path in paths:
+        for domain in read_domains(path):
+            if limit is not None and result.read >= limit:
+                break
+            result.read += 1
+            if domain in seen:
+                result.skipped_existing += 1
+                continue
+            seen.add(domain)
+            position += 1
+            chunk.append({"url": domain, "position": position, "batch": batch, "retries": 0,
+                          "finished": False, "last_search_datetime": now, "tech": []})
+            if len(chunk) >= CHUNK_SIZE:
+                inserted, skipped = _flush_chunk(chunk)
+                result.imported += inserted
+                result.skipped_existing += skipped
+                chunk = []
+    inserted, skipped = _flush_chunk(chunk)
+    result.imported += inserted
+    result.skipped_existing += skipped
+    return result
+
+
 def _flush_chunk(chunk: list[dict]) -> tuple[int, int]:
     """Inserta un bloque de documentos, ignorando duplicados por índice único `url`."""
     if not chunk:
@@ -61,9 +117,11 @@ def _flush_chunk(chunk: list[dict]) -> tuple[int, int]:
         return inserted, duplicates
 
 
-def import_sites(csv_path: str | Path, limit: int | None = None, batch: int = 1) -> ImportResult:
+def import_sites(csv_path, limit: int | None = None, batch: int = 1, unique: bool = False) -> ImportResult:
     """Importa sitios a la colección `Site` en bloques, en orden no-estricto para velocidad.
     Idempotente: las urls ya existentes (índice único) se omiten sin abortar el lote."""
+    if unique:
+        return _import_unique(csv_path if isinstance(csv_path, (list, tuple)) else [csv_path], limit, batch)
     result = ImportResult()
     chunk: list[dict] = []
     now = datetime.now(timezone.utc)

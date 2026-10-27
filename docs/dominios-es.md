@@ -70,13 +70,16 @@ separadas por `|`: `NOMBRE_DOMINIO`, `NOMBRE_TITULAR`, `IDENTIFICACION`.
 
 - **No se versiona nunca**: se guarda en `data/dominios/RISP_OTROS.csv` (ignorado por git y por Docker) y `.gitignore`
   tiene además una regla específica para ese nombre.
-- **No se importa a MongoDB tal cual**: para escanear solo hace falta el dominio. Se extrae esa columna y nada más:
+- **El importador solo lee la columna del dominio**: nombre del titular e identificación se descartan al leer y nunca llegan a
+  MongoDB. Se puede importar el RISP directamente, junto con la lista de Common Crawl, en un único lote sin repetidos:
 
 ```bash
-awk -F'|' 'NR > 1 { gsub(/"/, "", $1); print ++n "," tolower($1) }' \
-  data/dominios/RISP_OTROS.csv > data/dominios/risp-es.csv
-./30_import_data.sh "" ./data/dominios/risp-es.csv 4            # lote 4
+uv run webtechstats import-sites --unique --batch 3 \
+  --file data/dominios/RISP_OTROS.csv --file data/dominios/dominios-es.csv
 ```
+
+`--unique` normaliza (minúsculas), une los ficheros sin repetir dominios y omite los que ya estén en la BBDD en cualquier
+lote, así que se puede relanzar sin duplicar. La posición es el orden de aparición.
 
 Los informes que salen (`reports/`) son solo agregados por tecnología: no llevan dominios ni titulares.
 

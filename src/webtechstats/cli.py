@@ -86,17 +86,22 @@ def init_db_cmd() -> None:
 
 
 @main.command("import-sites")
-@click.option("--file", "csv_file", required=True, type=click.Path(exists=True), help="CSV posicion,dominio (formato Tranco).")
+@click.option("--file", "csv_file", required=True, multiple=True, type=click.Path(exists=True),
+              help="CSV posicion,dominio (formato Tranco) o listado RISP (solo se lee el dominio). Repetible con --unique.")
 @click.option("--limit", type=int, default=None, help="Número máximo de filas a importar (por defecto: todas).")
 @click.option("--batch", type=int, default=1, help="Identificador de lote asignado a los sitios importados.")
-def import_sites_cmd(csv_file: str, limit: int | None, batch: int) -> None:
+@click.option("--unique", is_flag=True,
+              help="Une los ficheros sin repetir dominios y omite los que ya están en la BBDD (en cualquier lote).")
+def import_sites_cmd(csv_file: tuple, limit: int | None, batch: int, unique: bool) -> None:
     """Importa un listado de dominios (p.ej. top-1m.csv) a la colección `Site`."""
     _start_log("import-sites", batch)
     _connect()
     from .models import Site
 
     Site.ensure_schema()
-    result = import_sites(csv_file, limit=limit, batch=batch)
+    if len(csv_file) > 1 and not unique:
+        raise click.UsageError("Varios --file requieren --unique.")
+    result = import_sites(list(csv_file) if unique else csv_file[0], limit=limit, batch=batch, unique=unique)
     summary_line = (
         f"Leídos: {result.read} | Importados: {result.imported} | "
         f"Ya existentes (omitidos): {result.skipped_existing}"
