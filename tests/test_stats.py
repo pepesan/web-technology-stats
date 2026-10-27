@@ -1,7 +1,7 @@
 # Autor: David Vaquero <pepesan@gmail.com>
 # Licencia: GPL-3.0-only
 from webtechstats.models import Site
-from webtechstats.stats import summary, top_technologies
+from webtechstats.stats import source_overlap, summary, top_technologies
 
 
 def seed():
@@ -97,3 +97,46 @@ def test_tld_combines_with_batch_and_max_position(db):
 def test_tld_is_matched_literally_not_as_a_regex(db):
     seed_tlds()
     assert summary(tld=".*")["total"] == 0
+
+
+def seed_sources():
+    Site(url="a.es", position=1, finished=True, tech=["PHP"], sources=["tranco", "risp2026"]).save()
+    Site(url="b.es", position=2, finished=True, tech=["Go"], sources=["risp2026", "cc"]).save()
+    Site(url="c.es", position=3, finished=False, retries=1, sources=["risp2026"]).save()
+    Site(url="d.es", position=4, finished=True, tech=["Rust"], sources=["risp2020"]).save()
+    Site(url="e.com", position=5, finished=True, tech=["PHP"], sources=["tranco"]).save()
+    Site(url="f.com", position=6, finished=True, tech=["Java"]).save()  # sin etiquetar
+
+
+def test_summary_and_ranking_filtered_by_source(db):
+    seed_sources()
+    assert summary(source="risp2026") == {"total": 3, "finished": 2, "pending": 0, "failed": 1, "finished_with_tech": 2}
+    assert summary(source="tranco")["total"] == 2
+    assert summary(source="nadie")["total"] == 0
+    assert summary()["total"] == 6  # sin filtro de fuente cuenta todo
+    assert {r["tech"] for r in top_technologies(source="risp2026")} == {"PHP", "Go"}
+    assert top_technologies(source="risp2020") == [{"tech": "Rust", "count": 1}]
+
+
+def test_source_filter_combines_with_batch_position_and_tld(db):
+    seed_sources()
+    Site(url="a.es", position=1, batch=2, finished=True, tech=["Zig"], sources=["risp2026"]).save()
+    assert summary(batch=1, source="risp2026")["total"] == 3
+    assert summary(batch=1, source="risp2026", max_position=2)["total"] == 2
+    assert summary(batch=1, source="tranco", tld="es")["total"] == 1
+    assert top_technologies(batch=2, source="risp2026") == [{"tech": "Zig", "count": 1}]
+
+
+def test_source_overlap_counts_each_set_of_sources_regardless_of_order(db):
+    seed_sources()
+    Site(url="g.es", position=7, finished=True, sources=["cc", "risp2026"]).save()  # mismo conjunto que b.es, otro orden
+    Site(url="h.es", position=8, batch=2, finished=True, sources=["cc"]).save()      # otro lote: no cuenta
+    # primero los conjuntos más frecuentes; a igual cuenta, por orden alfabético de las fuentes
+    assert source_overlap(batch=1) == [
+        {"sources": ["cc", "risp2026"], "count": 2},
+        {"sources": [], "count": 1},
+        {"sources": ["risp2020"], "count": 1},
+        {"sources": ["risp2026"], "count": 1},
+        {"sources": ["risp2026", "tranco"], "count": 1},
+        {"sources": ["tranco"], "count": 1},
+    ]

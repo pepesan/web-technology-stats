@@ -22,6 +22,12 @@ class ImportResult:
     skipped_existing: int = 0
 
 
+@dataclass
+class TagResult:
+    read: int = 0
+    tagged: int = 0
+
+
 def read_top_sites(csv_path: str | Path, limit: int | None = None) -> Iterator[tuple[int, str]]:
     """Lee un CSV `posicion,dominio` y devuelve tuplas (posicion, dominio)."""
     with open(csv_path, newline="") as fh:
@@ -148,4 +154,29 @@ def import_sites(csv_path, limit: int | None = None, batch: int = 1, unique: boo
     inserted, skipped = _flush_chunk(chunk)
     result.imported += inserted
     result.skipped_existing += skipped
+    return result
+
+
+def tag_sites(path: str | Path, source: str, batch: int = 1) -> TagResult:
+    """Añade `source` a `Site.sources` en los sitios del lote cuyo dominio aparece en el fichero.
+
+    Idempotente (`$addToSet`) y sin escanear nada: sirve para saber de qué listado procede cada dominio.
+    Los dominios del fichero que no están en el lote se ignoran. De un listado RISP solo se lee el dominio.
+    """
+    collection = Site._get_collection()
+    result = TagResult()
+    chunk: list[str] = []
+
+    def flush() -> None:
+        if chunk:
+            update = collection.update_many({"batch": batch, "url": {"$in": chunk}}, {"$addToSet": {"sources": source}})
+            result.tagged += update.matched_count
+            chunk.clear()
+
+    for domain in read_domains(path):
+        result.read += 1
+        chunk.append(domain)
+        if len(chunk) >= CHUNK_SIZE:
+            flush()
+    flush()
     return result

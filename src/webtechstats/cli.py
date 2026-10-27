@@ -7,6 +7,7 @@ Ver CLI.md para la documentación detallada de cada comando.
 
 import logging
 import os
+import re
 import signal
 import sys
 import threading
@@ -16,12 +17,12 @@ import click
 from . import __version__
 from .config import LOG_LEVELS, ConfigError, LogConfig, MongoConfig, ScanConfig
 from .db import close_db, init_db, ping
-from .importer import import_sites
+from .importer import import_sites, tag_sites
 from .locks import ScanAlreadyRunning, scan_lock
 from .logs import log_filename, setup_logging
 from .parallel import ShardFailed, kill_children, run_sharded
 from .detection import scan_pending_sites
-from .stats import summary, top_technologies
+from .stats import source_overlap, summary, top_technologies
 from .wappalyzer import Wappalyzer
 
 
@@ -266,6 +267,48 @@ def stats_cmd(top: int, batch: int | None) -> None:
     click.echo(f"\nTop {top} tecnologías:")
     for row in top_technologies(top=top, batch=batch):
         click.echo(f"  {row['tech']:<30} {row['count']}")
+    close_db()
+
+
+def _parse_source(value: str) -> tuple[str, str]:
+    name, sep, path = value.partition("=")
+    if not sep or not name or not path:
+        raise click.BadParameter(f"{value!r}: se espera NOMBRE=FICHERO (p. ej. risp2026=data/dominios/RISP_OTROS_2026.csv)")
+    if not re.fullmatch(r"[a-z0-9_-]{1,40}", name):
+        raise click.BadParameter(f"{name!r}: el nombre solo admite minúsculas, dígitos, «-» y «_» (máx. 40)")
+    if not os.path.isfile(path):
+        raise click.BadParameter(f"{path}: no existe")
+    return name, path
+
+
+@main.command("tag-sources")
+@click.option("--source", "sources", required=True, multiple=True,
+              help="NOMBRE=FICHERO: marca los sitios del lote cuyo dominio está en el fichero (CSV posicion,dominio o RISP). Repetible.")
+@click.option("--batch", type=int, default=1, show_default=True, help="Lote cuyos sitios se etiquetan.")
+def tag_sources_cmd(sources: tuple, batch: int) -> None:
+    """Anota de qué listado procede cada dominio (campo `sources`), sin escanear nada."""
+    parsed = [_parse_source(s) for s in sources]
+    _start_log("tag-sources", batch)
+    _connect()
+    from .models import Site
+
+    Site.ensure_schema()
+    for name, path in parsed:
+        result = tag_sites(path, name, batch=batch)
+        line = f"{name}: leídos {result.read} | etiquetados {result.tagged}"
+        click.echo(line)
+        logger.info("tag-sources lote %s: %s (%s)", batch, line, os.path.basename(path))
+    close_db()
+
+
+@main.command("sources")
+@click.option("--batch", type=int, default=None, help="Solo este lote (por defecto: todos).")
+def sources_cmd(batch: int | None) -> None:
+    """Cuántos sitios hay por cada combinación de listados de origen (solapes entre fuentes)."""
+    _start_log("sources", batch)
+    _connect()
+    for row in source_overlap(batch=batch):
+        click.echo(f"{' + '.join(row['sources']) or 'sin fuente'}: {row['count']}")
     close_db()
 
 

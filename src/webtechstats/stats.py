@@ -12,16 +12,21 @@ def _tld_regex(tld: str) -> str:
     return rf"\.{re.escape(tld.lstrip('.'))}$"
 
 
-def summary(batch: int | None = None, max_position: int | None = None, tld: str | None = None) -> dict:
+def summary(
+    batch: int | None = None, max_position: int | None = None, tld: str | None = None, source: str | None = None
+) -> dict:
     """Totales de todos los lotes, o solo del lote indicado.
 
-    `max_position` limita a los sitios del top N del ranking (`position <= N`) y `tld` a los dominios `.tld`.
+    `max_position` limita a los sitios del top N del ranking (`position <= N`), `tld` a los dominios `.tld` y
+    `source` a los dominios que proceden de ese listado (ver `Site.sources`).
     """
     sites = Site.objects if batch is None else Site.objects(batch=batch)
     if max_position is not None:
         sites = sites(position__lte=max_position)
     if tld:
         sites = sites(url=re.compile(_tld_regex(tld)))
+    if source:
+        sites = sites(sources=source)
     total = sites.count()
     finished = sites(finished=True).count()
     failed = sites(finished=False, retries__gt=0).count()  # intentados sin éxito ("sin respuesta")
@@ -71,14 +76,21 @@ def batch_info() -> list[dict]:
 
 
 def top_technologies(
-    top: int | None = 20, batch: int | None = None, max_position: int | None = None, tld: str | None = None
+    top: int | None = 20,
+    batch: int | None = None,
+    max_position: int | None = None,
+    tld: str | None = None,
+    source: str | None = None,
 ) -> list[dict]:
-    """Ranking de tecnologías; `top=None` devuelve todas. `max_position` limita al top N del ranking y `tld` a `.tld`."""
+    """Ranking de tecnologías; `top=None` devuelve todas. `max_position` limita al top N del ranking, `tld` a `.tld`
+    y `source` a los dominios de ese listado."""
     match = {"finished": True} if batch is None else {"finished": True, "batch": batch}
     if max_position is not None:
         match["position"] = {"$lte": max_position}
     if tld:
         match["url"] = {"$regex": _tld_regex(tld)}
+    if source:
+        match["sources"] = source
     pipeline = [
         {"$match": match},
         {"$unwind": "$tech"},
@@ -89,3 +101,17 @@ def top_technologies(
         pipeline.append({"$limit": top})
     collection = Site._get_collection()
     return [{"tech": doc["_id"], "count": doc["count"]} for doc in collection.aggregate(pipeline)]
+
+
+def source_overlap(batch: int | None = None) -> list[dict]:
+    """Cuántos sitios hay por cada combinación de listados de origen (`[]` = sin etiquetar).
+
+    El mismo conjunto cuenta junto aunque las fuentes se guardaran en otro orden. Más frecuentes primero.
+    """
+    pipeline = [{"$match": {} if batch is None else {"batch": batch}}, {"$group": {"_id": "$sources", "count": {"$sum": 1}}}]
+    merged: dict[tuple, int] = {}
+    for doc in Site._get_collection().aggregate(pipeline):
+        key = tuple(sorted(doc["_id"] or []))
+        merged[key] = merged.get(key, 0) + doc["count"]
+    ordered = sorted(merged.items(), key=lambda item: (-item[1], item[0]))
+    return [{"sources": list(key), "count": count} for key, count in ordered]

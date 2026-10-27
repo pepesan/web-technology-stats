@@ -31,6 +31,9 @@ class Site(Document):
     # salvo con `scan --retry-failed`. `discard_reason` guarda la clase del último error.
     discarded = BooleanField(default=False)
     discard_reason = StringField()
+    # Listados de los que procede el dominio (p. ej. "tranco", "risp2026", "risp2020", "cc"): permite estudiar
+    # un universo concreto (p. ej. el registro oficial de Red.es) sin reescanear. Lo rellena `tag-sources`.
+    sources = ListField(StringField(max_length=40))
 
     meta = {
         "collection": "site",
@@ -41,6 +44,7 @@ class Site(Document):
             "retries",
             "batch",
             "discarded",
+            "sources",
         ],
     }
 

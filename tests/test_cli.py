@@ -346,3 +346,37 @@ def test_second_signal_kills_the_children_before_exiting(sharded_spy, monkeypatc
     monkeypatch.setattr(cli, "run_sharded", fake_run_sharded)
     run("scan", "--processes", "2")
     assert killed == [1] and exits == [130]
+
+
+@pytest.fixture
+def seeded_connection(monkeypatch):
+    """Cada comando abre una conexión mongomock nueva: aquí la base nace ya con sitios etiquetados o por etiquetar."""
+    from webtechstats.db import init_db
+
+    def connect():
+        init_db(mongo_client_class=mongomock.MongoClient)
+        Site(url="a.es", position=1, batch=1, sources=["tranco"]).save()
+        Site(url="b.es", position=2, batch=1, sources=["tranco", "risp2026"]).save()
+        Site(url="c.es", position=3, batch=1).save()
+
+    monkeypatch.setattr(cli, "_connect", connect)
+
+
+def test_tag_sources_marks_domains_from_each_file(seeded_connection, tmp_path):
+    risp = tmp_path / "risp.csv"
+    risp.write_text('"NOMBRE_DOMINIO"|"NOMBRE_TITULAR"|"IDENTIFICACION"\n"c.es"|"x"|"y"\n"nuevo.es"|"x"|"y"\n')
+    result = run("tag-sources", "--batch", "1", "--source", f"risp2026={risp}")
+    assert result.exit_code == 0, result.output
+    assert "risp2026: leídos 2 | etiquetados 1" in result.output
+
+
+def test_tag_sources_requires_name_equals_file(seeded_connection, tmp_path):
+    assert run("tag-sources", "--batch", "1", "--source", "sin-igual").exit_code != 0
+    assert run("tag-sources", "--batch", "1", "--source", "x=/no/existe.csv").exit_code != 0
+
+
+def test_sources_prints_the_overlap_between_sources(seeded_connection):
+    result = run("sources", "--batch", "1")
+    assert result.exit_code == 0, result.output
+    assert "risp2026 + tranco: 1" in result.output  # fuentes en orden alfabético
+    assert "sin fuente: 1" in result.output

@@ -1,6 +1,6 @@
 # Autor: David Vaquero <pepesan@gmail.com>
 # Licencia: GPL-3.0-only
-from webtechstats.importer import import_sites, read_top_sites
+from webtechstats.importer import import_sites, read_top_sites, tag_sites
 from webtechstats.models import Site
 
 
@@ -112,3 +112,34 @@ def test_unique_import_continues_positions_after_the_batch_maximum(db, tmp_path)
     import_sites(_write(tmp_path / "top.csv", "1,a.com\n2,b.com\n"), batch=1)
     import_sites([_write(tmp_path / "es.csv", "1,c.es\n2,d.es\n")], batch=1, unique=True)
     assert {s.url: s.position for s in Site.objects(batch=1)} == {"a.com": 1, "b.com": 2, "c.es": 3, "d.es": 4}
+
+
+# ---------- etiquetado de fuentes (campo `sources`) ----------
+
+
+def test_tag_sites_marks_only_the_matching_sites_of_the_batch(db, tmp_path):
+    import_sites(_write(tmp_path / "a.csv", "1,a.es\n2,b.es\n3,c.es\n"), batch=1)
+    import_sites(_write(tmp_path / "b.csv", "1,a.es\n"), batch=2)
+    lista = _write(tmp_path / "risp.csv", '"NOMBRE_DOMINIO"|"NOMBRE_TITULAR"|"IDENTIFICACION"\n"A.es"|"x"|"y"\n"c.es"|"x"|"y"\n"fuera.es"|"x"|"y"\n')
+    result = tag_sites(lista, "risp2026", batch=1)
+    assert (result.read, result.tagged) == (3, 2)  # fuera.es no está en el lote: se ignora
+    assert {s.url: list(s.sources) for s in Site.objects(batch=1)} == {"a.es": ["risp2026"], "b.es": [], "c.es": ["risp2026"]}
+    assert list(Site.objects.get(url="a.es", batch=2).sources) == []  # otro lote: intacto
+
+
+def test_tag_sites_is_idempotent_and_accumulates_sources(db, tmp_path):
+    import_sites(_write(tmp_path / "a.csv", "1,a.es\n2,b.es\n"), batch=1)
+    f = _write(tmp_path / "f.csv", "1,a.es\n")
+    tag_sites(f, "cc", batch=1)
+    tag_sites(f, "cc", batch=1)
+    tag_sites(_write(tmp_path / "g.csv", "1,a.es\n2,b.es\n"), "tranco", batch=1)
+    assert sorted(Site.objects.get(url="a.es").sources) == ["cc", "tranco"]
+    assert list(Site.objects.get(url="b.es").sources) == ["tranco"]
+
+
+def test_tag_sites_never_stores_risp_holder_data(db, tmp_path):
+    import_sites(_write(tmp_path / "a.csv", "1,x.es\n"), batch=1)
+    risp = _write(tmp_path / "r.csv", '"NOMBRE_DOMINIO"|"NOMBRE_TITULAR"|"IDENTIFICACION"\n"x.es"|"Persona Fisica"|"12345678Z"\n')
+    tag_sites(risp, "risp2026", batch=1)
+    raw = str(Site._get_collection().find_one({"url": "x.es"}))
+    assert "Persona" not in raw and "12345678Z" not in raw
