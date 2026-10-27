@@ -24,9 +24,13 @@ export async function loadConfig() {
   return { source: source === 'api' ? 'api' : DEFAULT_SOURCE }
 }
 
-// Ámbito de un informe: 'all' (todo el ranking) o un TLD (p. ej. 'es' → España).
-export const SCOPE_LABELS = { all: 'Mundo', es: 'España (.es)' }
-export const scopeLabel = (scope) => SCOPE_LABELS[scope] ?? `.${scope}`
+// Fuentes del selector, en este orden: 'all' = mundo (ranking Tranco) y 'es' = España (registro oficial de Red.es,
+// listado RISP, copia del 26-10-2026).
+export const SCOPE_ORDER = ['all', 'es']
+export const SCOPE_LABELS = { all: 'Mundo (Tranco)', es: 'España 2026 (Red.es)' }
+export const scopeLabel = (scope) => SCOPE_LABELS[scope] ?? scope
+// Listado (`Site.sources`) que la API filtra para cada fuente del selector en modo API.
+const SCOPE_LISTING = { all: 'tranco', es: 'risp2026' }
 
 export function createSource(source) {
   return source === 'api' ? apiSource() : reportsSource()
@@ -48,17 +52,17 @@ function apiSource() {
       }))
     },
     topSteps: () => TOP_STEPS,
-    // ámbitos fijos: el filtro por TLD lo aplica la API sobre los datos en vivo
-    scopes: ['all', 'es'],
+    // fuentes fijas: la API filtra por el listado de origen de cada dominio (campo `sources`)
+    scopes: SCOPE_ORDER,
     overview: (value, top, scope) =>
-      fetchOverview(value === '' ? null : value, top === '' ? null : top, scope && scope !== 'all' ? scope : null),
+      fetchOverview(value === '' ? null : value, top === '' ? null : top, SCOPE_LISTING[scope] ?? null),
     topic: (value, top, topic, { limit, category, scope }) =>
       fetchTopic(topic, {
         batch: value === '' ? null : value,
         limit,
         category,
         maxPosition: top === '' ? null : top,
-        tld: scope && scope !== 'all' ? scope : null,
+        source: SCOPE_LISTING[scope] ?? null,
       }),
   }
 }

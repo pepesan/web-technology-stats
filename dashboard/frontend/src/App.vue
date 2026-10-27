@@ -4,7 +4,7 @@
 -->
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { createSource, loadConfig, scopeLabel } from './sources'
+import { SCOPE_ORDER, createSource, loadConfig, scopeLabel } from './sources'
 import { fmtInt, fmtPct } from './format'
 import StatTile from './components/StatTile.vue'
 import TopicTabs from './components/TopicTabs.vue'
@@ -16,27 +16,37 @@ const topLabel = (n) => (n >= 1_000_000 ? '1M' : n >= 1_000 ? `${n / 1_000}k` : 
 const source = ref(null)         // fuente de datos (informes estáticos o API), según el flag de config.json
 const options = ref([])          // informes o lotes disponibles
 const current = ref('')          // informe/lote elegido ('' = todos los lotes, solo en modo API)
-const scope = ref('')            // ámbito del informe ('all' = mundo, 'es' = España...); solo con varios ámbitos
+const scope = ref('')            // fuente de los datos ('all' = mundo/Tranco, 'es' = España/Red.es); solo con varias fuentes
 const top = ref('')              // '' = sin límite; N = solo posiciones <= N del ranking
 const overview = ref(null)
 const topic = ref('lang_back')
 const ranking = ref(null)
 const limit = ref(PAGE)
 const category = ref('')
-const loading = ref(true)
+// «Cargando» = arranque (config y listado) o alguna consulta vigente. Cada consulta puede tardar decenas de segundos
+// en una fuente grande, así que una respuesta atrasada de una petición anterior no puede pisar a la última.
+const booting = ref(true)
+const overviewBusy = ref(false)
+const rankingBusy = ref(false)
+const loading = computed(() => booting.value || overviewBusy.value || rankingBusy.value)
+const ready = ref(false)   // la carga inicial ha terminado: antes, los cambios de selector no relanzan consultas
+const initializing = computed(() => !overview.value && loading.value)
 const error = ref('')
 
+const scopeRank = (s) => (SCOPE_ORDER.includes(s) ? SCOPE_ORDER.indexOf(s) : SCOPE_ORDER.length)
 const scopes = computed(
-  () => source.value?.scopes ?? [...new Set(options.value.map((o) => o.scope).filter(Boolean))],
+  () =>
+    source.value?.scopes ??
+    [...new Set(options.value.map((o) => o.scope).filter(Boolean))].sort((a, b) => scopeRank(a) - scopeRank(b)),
 )
-// solo los informes estáticos llevan el ámbito en cada opción; en modo API el ámbito es un filtro aparte
+// solo los informes estáticos llevan la fuente en cada opción; en modo API la fuente es un filtro aparte
 const visibleOptions = computed(() =>
   options.value.some((o) => o.scope) && scopes.value.length > 1
     ? options.value.filter((o) => o.scope === scope.value)
     : options.value,
 )
 const topSteps = computed(() => (source.value ? source.value.topSteps(current.value) : []))
-// con un ámbito acotado (.es) el corte por posición del ranking mundial no tiene sentido: no se ofrece
+// con una fuente acotada (España) el corte por posición del ranking mundial no tiene sentido: no se ofrece
 const scoped = computed(() => scope.value !== '' && scope.value !== 'all')
 const coverage = computed(() =>
   overview.value && overview.value.total
@@ -44,25 +54,42 @@ const coverage = computed(() =>
     : '—',
 )
 
+let overviewSeq = 0
+let rankingSeq = 0
 async function loadOverview() {
-  overview.value = await source.value.overview(current.value, top.value, scope.value)
+  const id = ++overviewSeq
+  overviewBusy.value = true
+  try {
+    const data = await source.value.overview(current.value, top.value, scope.value)
+    if (id === overviewSeq) overview.value = data
+  } catch (e) {
+    if (id === overviewSeq) throw e
+  } finally {
+    if (id === overviewSeq) overviewBusy.value = false
+  }
 }
 async function loadRanking() {
-  ranking.value = await source.value.topic(current.value, top.value, topic.value, {
-    limit: limit.value,
-    category: category.value,
-    scope: scope.value,
-  })
+  const id = ++rankingSeq
+  rankingBusy.value = true
+  try {
+    const data = await source.value.topic(current.value, top.value, topic.value, {
+      limit: limit.value,
+      category: category.value,
+      scope: scope.value,
+    })
+    if (id === rankingSeq) ranking.value = data
+  } catch (e) {
+    if (id === rankingSeq) throw e
+  } finally {
+    if (id === rankingSeq) rankingBusy.value = false
+  }
 }
 async function run(fn) {
-  loading.value = true
   error.value = ''
   try {
     await fn()
   } catch (e) {
     error.value = e.message
-  } finally {
-    loading.value = false
   }
 }
 
@@ -71,7 +98,7 @@ function initialCurrent(list) {
   const wanted = new URLSearchParams(window.location.search).get(source.value.param)
   if (wanted === 'all' && source.value.allValue) return ''
   if (wanted && list.some((o) => String(o.value) === wanted)) return list.find((o) => String(o.value) === wanted).value
-  // por defecto, el último informe del ámbito mundial (o el último que haya)
+  // por defecto, el último informe de la fuente mundial (o el último que haya)
   const world = list.filter((o) => o.scope === 'all')
   const pool = world.length ? world : list
   return pool.length ? pool[pool.length - 1].value : ''
@@ -88,8 +115,8 @@ function syncUrl() {
   window.history.replaceState(null, '', url)
 }
 
-onMounted(() =>
-  run(async () => {
+onMounted(async () => {
+  await run(async () => {
     source.value = createSource((await loadConfig()).source)
     options.value = await source.value.list()
     current.value = initialCurrent(options.value)
@@ -97,21 +124,23 @@ onMounted(() =>
     top.value = initialTop()
     syncUrl()
     await Promise.all([loadOverview(), loadRanking()])
-  }),
-)
+  })
+  booting.value = false
+  ready.value = true
+})
 watch(scope, () => {
-  // al cambiar de ámbito se abre el informe del mismo año (o el último) de ese ámbito
+  // al cambiar de fuente se abre el informe del mismo año (o el último) de esa fuente
   if (visibleOptions.value.some((o) => o.value === current.value)) return
   const year = options.value.find((o) => o.value === current.value)?.year
   const same = visibleOptions.value.find((o) => o.year === year)
   current.value = (same ?? visibleOptions.value[visibleOptions.value.length - 1])?.value ?? current.value
 })
 watch([current, scope], () => {
-  // el corte por posición mundial solo tiene sentido en el ámbito Mundo; el elegido puede no existir en el otro informe
+  // el corte por posición mundial solo tiene sentido con la fuente Mundo; el elegido puede no existir en el otro informe
   if (top.value !== '' && (scoped.value || !topSteps.value.includes(top.value))) top.value = ''
 })
 watch([current, top, scope], () => {
-  if (!source.value) return
+  if (!source.value || !ready.value) return
   syncUrl()
   limit.value = PAGE
   run(() => Promise.all([loadOverview(), loadRanking()]))
@@ -136,21 +165,21 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
       </div>
       <div class="filters">
         <label class="batch" v-if="scopes.length > 1">
-          <span>Ámbito</span>
-          <select v-model="scope" aria-label="Ámbito">
+          <span>Fuente</span>
+          <select v-model="scope" aria-label="Fuente" :disabled="initializing">
             <option v-for="s in scopes" :key="s" :value="s">{{ scopeLabel(s) }}</option>
           </select>
         </label>
         <label class="batch" v-if="source">
           <span>{{ source.noun }}</span>
-          <select v-model="current" :aria-label="source.noun">
+          <select v-model="current" :aria-label="source.noun" :disabled="initializing">
             <option v-if="source.allValue" :value="source.allValue.value">{{ source.allValue.label }}</option>
             <option v-for="o in visibleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
         <label class="batch" v-if="!scoped">
           <span>Nº de sitios</span>
-          <select v-model="top" aria-label="Número de sitios">
+          <select v-model="top" aria-label="Número de sitios" :disabled="initializing">
             <option value="">Todos</option>
             <option v-for="n in topSteps" :key="n" :value="n">Top {{ topLabel(n) }}</option>
           </select>
@@ -160,10 +189,13 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
-    <div v-if="loading && overview" class="progress" aria-hidden="true"></div>
+    <div v-if="loading" class="loading-banner" role="status">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>Cargando datos… las consultas de una fuente grande pueden tardar unos segundos.</span>
+    </div>
 
     <template v-if="overview">
-      <section class="tiles" aria-label="Resumen">
+      <section class="tiles" :class="{ refreshing: loading }" aria-label="Resumen">
         <StatTile label="Sitios importados" :value="fmtInt(overview.total)" />
         <StatTile label="Sitios analizados" :value="fmtInt(overview.finished)" :hint="`${coverage} del ${source.noun.toLowerCase()}`" />
         <StatTile label="Pendientes" :value="fmtInt(overview.pending)" hint="aún sin intentar" />
@@ -311,22 +343,34 @@ select {
 .sk-title { height: 22px; width: 40%; margin-bottom: 8px; }
 .sk-bar { height: 22px; min-width: 15%; }
 @keyframes shimmer { to { background-position: -200% 0; } }
-.progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  background-size: 40% 100%;
-  background-repeat: no-repeat;
-  animation: slide 1s ease-in-out infinite;
+.loading-banner {
+  position: sticky;
+  top: 8px;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
 }
-@keyframes slide { from { background-position: -40% 0; } to { background-position: 140% 0; } }
-.panel { transition: opacity 0.15s; }
-.panel.refreshing { opacity: 0.55; }
+.spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.tiles, .panel { transition: opacity 0.15s; }
+.tiles.refreshing, .panel.refreshing { opacity: 0.45; }
 @media (prefers-reduced-motion: reduce) {
-  .sk, .progress { animation: none; }
+  .sk, .spinner { animation: none; }
 }
 </style>

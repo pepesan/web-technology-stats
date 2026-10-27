@@ -42,11 +42,13 @@ def _write(path: Path, data: dict) -> None:
     tmp.replace(path)  # nunca queda un JSON a medias
 
 
-def _cut(service: DashboardService, report_id: str, batch: int, max_position: int | None, tld: str | None = None) -> dict:
-    overview = service.overview(batch, max_position, tld)
+def _cut(
+    service: DashboardService, report_id: str, batch: int, max_position: int | None, tld: str | None = None, source: str | None = None
+) -> dict:
+    overview = service.overview(batch, max_position, tld, source)
     topics = []
     for t in overview["topics"]:
-        ranking = service.topic_ranking(t["key"], batch=batch, limit=_ALL, max_position=max_position, tld=tld)
+        ranking = service.topic_ranking(t["key"], batch=batch, limit=_ALL, max_position=max_position, tld=tld, source=source)
         topics.append(
             {
                 "key": t["key"],
@@ -60,6 +62,7 @@ def _cut(service: DashboardService, report_id: str, batch: int, max_position: in
         "report": report_id,
         "max_position": max_position,
         "tld": tld,
+        "source": source,
         "summary": {
             key: overview[key]
             for key in ("total", "finished", "pending", "failed", "with_tech", "distinct_tech")
@@ -79,6 +82,8 @@ def export_report(
     tld: str | None = None,
     min_sites: int | None = None,
     max_position: int | None = None,
+    source: str | None = None,
+    scope: str | None = None,
 ) -> dict:
     """Escribe el informe del lote y actualiza `index.json`. Devuelve la entrada del índice.
 
@@ -91,17 +96,17 @@ def export_report(
     if info is None:
         raise ValueError(f"el lote {batch} no existe o está vacío")
     out_dir = Path(out_dir)
-    # Con un tld (p. ej. es) los primeros cortes casi no tienen sitios: se omiten los de menos de `min_sites`.
-    min_sites = (30 if tld else 0) if min_sites is None else min_sites
+    # Con un tld o una fuente acotada los primeros cortes casi no tienen sitios: se omiten los de menos de `min_sites`.
+    min_sites = (30 if (tld or source) else 0) if min_sites is None else min_sites
     tops = []
     for n in (TOP_STEPS if steps is None else steps):
         if n > info["total"] or (max_position is not None and n > max_position):
             continue
-        cut = _cut(service, report_id, batch, n, tld)
+        cut = _cut(service, report_id, batch, n, tld, source)
         if cut["summary"]["finished"] >= max(min_sites, 1):
             _write(out_dir / report_id / f"top-{n}.json", cut)
             tops.append(n)
-    everything = _cut(service, report_id, batch, max_position, tld)
+    everything = _cut(service, report_id, batch, max_position, tld, source)
     _write(out_dir / report_id / "top-all.json", everything)
     totals = everything["summary"]
 
@@ -112,8 +117,9 @@ def export_report(
         "batch": batch,
         "generated": datetime.now().replace(microsecond=0).isoformat(),
         "last_activity": info["last_activity"],
-        "scope": tld or "all",
+        "scope": scope or tld or source or "all",
         "tld": tld,
+        "source": source,
         "total": totals["total"],
         "finished": totals["finished"],
         "failed": totals["failed"],
@@ -134,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--label", help="etiqueta visible (por defecto, el identificador)")
     parser.add_argument("--year", type=int, help="año del informe (por defecto, el actual)")
     parser.add_argument("--tld", help="solo dominios .TLD (p. ej. es); genera un informe de ámbito acotado")
+    parser.add_argument("--source", help="solo dominios de ese listado (campo `sources`, ver `tag-sources`; p. ej. risp2026)")
+    parser.add_argument("--scope", help="ámbito que muestra el selector «Fuente» (p. ej. es); por defecto el TLD, la fuente o «all»")
     parser.add_argument("--max-position", type=int, help="solo posiciones <= N del ranking (p. ej. 1000000 = solo el Tranco)")
     parser.add_argument("--out", default="reports", help="carpeta de salida (por defecto ./reports)")
     args = parser.parse_args(argv)
@@ -141,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         entry = export_report(
             DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year,
-            tld=args.tld, max_position=args.max_position,
+            tld=args.tld, max_position=args.max_position, source=args.source, scope=args.scope,
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

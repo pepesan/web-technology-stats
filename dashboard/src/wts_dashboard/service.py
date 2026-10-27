@@ -33,16 +33,18 @@ class DashboardService:
     def batches(self) -> list[dict]:
         return batch_info()
 
-    def _load(self, batch: int | None, max_position: int | None = None, tld: str | None = None) -> dict:
+    def _load(
+        self, batch: int | None, max_position: int | None = None, tld: str | None = None, source: str | None = None
+    ) -> dict:
         """Resumen + ranking completo clasificado por tema (cacheado unos segundos)."""
-        key = (batch, max_position, tld)
+        key = (batch, max_position, tld, source)
         cached = self._cache.get(key)
         if cached and time.monotonic() - cached[0] < self._cache_ttl:
             return cached[1]
-        data = summary(batch=batch, max_position=max_position, tld=tld)
+        data = summary(batch=batch, max_position=max_position, tld=tld, source=source)
         entries = [
             Entry(r["tech"], r["count"], self.classifier.topic(r["tech"]), self.classifier.category(r["tech"]))
-            for r in top_technologies(top=None, batch=batch, max_position=max_position, tld=tld)
+            for r in top_technologies(top=None, batch=batch, max_position=max_position, tld=tld, source=source)
         ]
         loaded = {"summary": data, "entries": entries}
         self._cache[key] = (time.monotonic(), loaded)
@@ -52,8 +54,10 @@ class DashboardService:
     def _pct(count: int, base: int) -> float:
         return round(100 * count / base, 1) if base else 0.0
 
-    def overview(self, batch: int | None = None, max_position: int | None = None, tld: str | None = None) -> dict:
-        loaded = self._load(batch, max_position, tld)
+    def overview(
+        self, batch: int | None = None, max_position: int | None = None, tld: str | None = None, source: str | None = None
+    ) -> dict:
+        loaded = self._load(batch, max_position, tld, source)
         data, entries = loaded["summary"], loaded["entries"]
         topics = []
         for key, label in TOPICS.items():
@@ -73,6 +77,7 @@ class DashboardService:
             "batch": batch,
             "max_position": max_position,
             "tld": tld,
+            "source": source,
             "total": data["total"],
             "finished": data["finished"],
             "pending": data["pending"],
@@ -90,10 +95,11 @@ class DashboardService:
         category: str | None = None,
         max_position: int | None = None,
         tld: str | None = None,
+        source: str | None = None,
     ) -> dict:
         """Ranking de un tema. Lanza KeyError si el tema no existe."""
         label = TOPICS[topic]
-        loaded = self._load(batch, max_position, tld)
+        loaded = self._load(batch, max_position, tld, source)
         base = loaded["summary"]["finished"]
         of_topic = [e for e in loaded["entries"] if e.topic == topic]
         categories = sorted({e.category for e in of_topic if e.category})
@@ -105,6 +111,7 @@ class DashboardService:
             "batch": batch,
             "max_position": max_position,
             "tld": tld,
+            "source": source,
             "base": base,
             "total_items": len(of_topic),
             "categories": categories,

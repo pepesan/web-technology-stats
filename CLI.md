@@ -48,6 +48,17 @@ Importa `posición,dominio` como sitios pendientes del lote `B` (por defecto 1).
 - `--unique`: admite varios `--file` (CSV `posicion,dominio` o listado RISP, del que solo se lee el dominio), los une sin repetir dominios y omite los que ya estén en la BBDD en cualquier lote. La posición es el orden de aparición.
 - Salida: `Leídos | Importados | Ya existentes (omitidos)`.
 
+### `tag-sources --source NOMBRE=FICHERO [--source ...] [--batch B]`
+Anota de qué listado procede cada dominio del lote `B` (por defecto 1) en el campo `Site.sources`, **sin escanear nada**: lee solo la columna del dominio (CSV `posicion,dominio` o listado RISP; el titular y su identificación se descartan) y añade `NOMBRE` a los sitios del lote que aparezcan en el fichero. Idempotente (`$addToSet`); los dominios del fichero que no están en el lote se ignoran. Salida por fuente: `NOMBRE: leídos N | etiquetados M`. Sirve para estudiar un universo concreto (p. ej. el registro oficial de Red.es) sin reescanear:
+```bash
+uv run webtechstats tag-sources --batch 1 --source tranco=top-1m.csv \
+  --source risp2026=data/dominios/RISP_OTROS_2026.csv --source risp2020=data/dominios/RISP_OTROS.csv \
+  --source cc=data/dominios/dominios-es.csv
+```
+
+### `sources [--batch B]`
+Cuántos sitios hay por cada combinación de listados de origen (`risp2020 + risp2026: 752864`, `sin fuente: N`…), de mayor a menor: son los solapes entre fuentes (altas y bajas entre dos listados).
+
 ### `scan [--limit N] [--batch B] [--workers W] [--processes P] [--retry-failed] [--max-retries M]`
 Escanea hasta `N` sitios pendientes (`finished=False`, por defecto 100) ordenados por posición.
 - Para cada sitio prueba `https://`, `http://` y `https://www.` y se queda con la primera variante que responde.
@@ -88,7 +99,7 @@ Comando aparte, del proyecto `dashboard/` (no del CLI `webtechstats`): guarda un
 uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
 ```
 
-`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--tld` (p. ej. `es`: solo esos dominios, informe de ámbito acotado), `--max-position N` (solo posiciones ≤ N del ranking, también en «todos») y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
+`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--source NOMBRE` (solo los dominios de ese listado, ver `tag-sources`), `--scope X` (valor que muestra el selector «Fuente»; por defecto el TLD, la fuente o `all`), `--tld` (p. ej. `es`: solo esos dominios), `--max-position N` (solo posiciones ≤ N del ranking, también en «todos») y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
 
 Gráficas para el blog (SVG + PNG) a partir de esos informes, sin MongoDB:
 

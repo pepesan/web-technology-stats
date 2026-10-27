@@ -136,3 +136,14 @@ def test_overview_and_ranking_filtered_by_tld(client):
     back = client.get("/api/topics/lang_back", params={"batch": 1, "tld": "es"}).json()
     assert [i["tech"] for i in back["items"]] == ["PHP"] and back["tld"] == "es"
     assert client.get("/api/overview", params={"tld": "e s"}).status_code == 422
+
+
+def test_overview_and_ranking_filtered_by_source(client):
+    Site(url="a.es", position=1, batch=1, finished=True, tech=["PHP", "MySQL"], sources=["risp2026"]).save()
+    Site(url="b.com", position=2, batch=1, finished=True, tech=["Go"], sources=["tranco"]).save()
+    data = client.get("/api/overview", params={"batch": 1, "source": "risp2026"}).json()
+    assert (data["total"], data["finished"], data["source"]) == (1, 1, "risp2026")
+    back = client.get("/api/topics/lang_back", params={"batch": 1, "source": "risp2026"}).json()
+    assert [i["tech"] for i in back["items"]] == ["PHP"] and back["source"] == "risp2026"
+    assert client.get("/api/overview").json()["source"] is None
+    assert client.get("/api/overview", params={"source": "e s"}).status_code == 422

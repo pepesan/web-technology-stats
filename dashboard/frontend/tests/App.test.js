@@ -70,7 +70,7 @@ describe('App', () => {
     const w = mount(App)
     await flushPromises()
     // por defecto abre el último lote y lo refleja en la URL
-    expect(fetch.mock.calls.map((c) => c[0])).toContain('/api/overview?batch=2')
+    expect(fetch.mock.calls.map((c) => c[0])).toContain('/api/overview?batch=2&source=tranco')
     expect(window.location.search).toBe('?batch=2')
     await w.find('select[aria-label="Lote"]').setValue(1)
     await flushPromises()
@@ -79,9 +79,9 @@ describe('App', () => {
     await flushPromises()
     expect(window.location.search).toBe('?batch=all')
     const urls = fetch.mock.calls.map((c) => c[0])
-    expect(urls).toContain('/api/overview?batch=1')
-    expect(urls).toContain('/api/topics/lang_back?batch=1&limit=15')
-    expect(urls).toContain('/api/overview')
+    expect(urls).toContain('/api/overview?batch=1&source=tranco')
+    expect(urls).toContain('/api/topics/lang_back?batch=1&limit=15&source=tranco')
+    expect(urls).toContain('/api/overview?source=tranco')
   })
 
   it('avisa de que los datos son parciales mientras queden sitios pendientes', async () => {
@@ -163,7 +163,7 @@ describe('App', () => {
     expect(new URLSearchParams(window.location.search).get('top')).toBe('1000')
   })
 
-  it('modo API: el selector de ámbito filtra por TLD en overview y ranking', async () => {
+  it('modo API: el selector de fuente filtra por listado (Tranco / Red.es) en overview y ranking', async () => {
     mockApi({
       '/api/batches': BATCHES,
       '/api/overview': overview(),
@@ -171,19 +171,20 @@ describe('App', () => {
     })
     const w = mount(App)
     await flushPromises()
-    const select = w.find('select[aria-label="Ámbito"]')
-    expect(select.findAll('option').map((o) => o.text())).toEqual(['Mundo', 'España (.es)'])
-    expect(fetch.mock.calls.map((c) => c[0]).some((u) => u.includes('tld='))).toBe(false)
+    const select = w.find('select[aria-label="Fuente"]')
+    expect(select.findAll('option').map((o) => o.text())).toEqual(['Mundo (Tranco)', 'España 2026 (Red.es)'])
+    expect(select.element.value).toBe('all')
+    expect(fetch.mock.calls.map((c) => c[0]).some((u) => u.startsWith('/api/overview') && u.includes('source=tranco'))).toBe(true)
     await select.setValue('es')
     await flushPromises()
     const urls = fetch.mock.calls.map((c) => c[0])
-    expect(urls.some((u) => u.startsWith('/api/overview') && u.includes('tld=es'))).toBe(true)
-    expect(urls.some((u) => u.startsWith('/api/topics/lang_back') && u.includes('tld=es'))).toBe(true)
-    // el lote elegido se conserva al cambiar de ámbito
+    expect(urls.some((u) => u.startsWith('/api/overview') && u.includes('source=risp2026'))).toBe(true)
+    expect(urls.some((u) => u.startsWith('/api/topics/lang_back') && u.includes('source=risp2026'))).toBe(true)
+    // el lote elegido se conserva al cambiar de fuente
     expect(w.find('select[aria-label="Lote"]').element.value).toBe('2')
   })
 
-  it('modo API: con el ámbito España se oculta el selector de nº de sitios y se descarta el corte elegido', async () => {
+  it('modo API: con la fuente España se oculta el selector de nº de sitios y se descarta el corte elegido', async () => {
     mockApi({
       '/api/batches': BATCHES,
       '/api/overview': overview(),
@@ -193,19 +194,117 @@ describe('App', () => {
     await flushPromises()
     await w.find('select[aria-label="Número de sitios"]').setValue(1000)
     await flushPromises()
-    await w.find('select[aria-label="Ámbito"]').setValue('es')
+    await w.find('select[aria-label="Fuente"]').setValue('es')
     await flushPromises()
     expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(false)
     const urls = fetch.mock.calls.map((c) => c[0])
     const last = urls.filter((u) => u.startsWith('/api/overview')).at(-1)
-    expect(last).toContain('tld=es')
+    expect(last).toContain('source=risp2026')
     expect(last).not.toContain('max_position')
     expect(new URLSearchParams(window.location.search).get('top')).toBeNull()
-    await w.find('select[aria-label="Ámbito"]').setValue('all')
+    await w.find('select[aria-label="Fuente"]').setValue('all')
     await flushPromises()
     expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(true)
   })
 
+  it('al cambiar de fuente muestra un aviso de carga visible mientras llegan los datos y lo quita después', async () => {
+    mockApi({
+      '/api/batches': BATCHES,
+      '/api/overview': overview(),
+      '/api/topics/lang_back': ranking('lang_back', 'Lenguajes de back', []),
+    })
+    const w = mount(App)
+    await flushPromises()
+    expect(w.find('.loading-banner').exists()).toBe(false)
+    // a partir de aquí las respuestas de la API se retienen hasta soltarlas (consulta lenta de una fuente grande)
+    const answer = fetch
+    let release
+    const gate = new Promise((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn(async (url) => { await gate; return answer(url) }))
+    await w.find('select[aria-label="Fuente"]').setValue('es')
+    await w.vm.$nextTick()
+    const banner = w.find('.loading-banner')
+    expect(banner.exists()).toBe(true)
+    expect(banner.text()).toContain('Cargando')
+    expect(w.find('.tiles').classes()).toContain('refreshing')  // las cifras antiguas se ven apagadas, no como definitivas
+    release()
+    await flushPromises()
+    expect(w.find('.loading-banner').exists()).toBe(false)
+    expect(w.find('.tiles').classes()).not.toContain('refreshing')
+  })
+
+  describe('primera carga y respuestas lentas (modo API)', () => {
+    // La API de una fuente grande tarda decenas de segundos: aquí se retienen las respuestas de datos hasta soltarlas.
+    function slowApi(gates = {}) {
+      const routes = {
+        'config.json': { source: 'api' },
+        '/api/batches': BATCHES,
+        '/api/topics/lang_back': ranking('lang_back', 'Lenguajes de back', []),
+      }
+      vi.stubGlobal('fetch', vi.fn(async (url) => {
+        const [path, query = ''] = url.split('?')
+        if (path === '/api/overview') {
+          const params = new URLSearchParams(query)
+          const gate = gates[params.get('source')]
+          if (gate) await gate.promise
+          return { ok: true, status: 200, json: async () => overview({ total: gate?.total ?? 111 }) }
+        }
+        const body = routes[path]
+        return body === undefined
+          ? { ok: false, status: 404, json: async () => ({}) }
+          : { ok: true, status: 200, json: async () => body }
+      }))
+    }
+    const gate = (total) => {
+      let release
+      const promise = new Promise((resolve) => { release = resolve })
+      return { promise, release, total }
+    }
+
+    it('en la primera carga muestra el aviso de carga (no solo el esqueleto) y bloquea los selectores hasta tener datos', async () => {
+      const tranco = gate(1000)
+      slowApi({ tranco })
+      const w = mount(App)
+      await flushPromises()
+      expect(w.find('.skeleton').exists()).toBe(true)
+      expect(w.find('.loading-banner').exists()).toBe(true)
+      expect(w.find('.loading-banner').text()).toContain('Cargando')
+      for (const label of ['Fuente', 'Lote', 'Número de sitios']) {
+        expect(w.find(`select[aria-label="${label}"]`).attributes('disabled')).toBeDefined()
+      }
+      tranco.release()
+      await flushPromises()
+      expect(w.find('.loading-banner').exists()).toBe(false)
+      expect(w.find('select[aria-label="Fuente"]').attributes('disabled')).toBeUndefined()
+      expect(w.find('select[aria-label="Fuente"]').element.value).toBe('all')
+    })
+
+    it('la primera carga pide el resumen y el ranking una sola vez (cada consulta tarda decenas de segundos)', async () => {
+      slowApi()
+      mount(App)
+      await flushPromises()
+      const urls = fetch.mock.calls.map((c) => c[0])
+      expect(urls.filter((u) => u.startsWith('/api/overview'))).toHaveLength(1)
+      expect(urls.filter((u) => u.startsWith('/api/topics/lang_back'))).toHaveLength(1)
+    })
+
+    it('una respuesta lenta de una fuente anterior no pisa los datos de la fuente elegida después', async () => {
+      const slow = gate(111)
+      slowApi({ risp2026: slow })
+      const w = mount(App)
+      await flushPromises()
+      const tile = () => w.find('.tile .value').text()
+      await w.find('select[aria-label="Fuente"]').setValue('es')      // risp2026: retenida
+      await w.find('select[aria-label="Fuente"]').setValue('all')     // tranco: responde ya (111)
+      await flushPromises()
+      expect(w.find('.loading-banner').exists()).toBe(false)
+      slow.total = 999
+      slow.release()                                                  // llega tarde la de risp2026
+      await flushPromises()
+      expect(w.find('select[aria-label="Fuente"]').element.value).toBe('all')
+      expect(tile()).toBe('111')  // sigue siendo el resultado de Mundo, no el de España que llegó tarde
+    })
+  })
 })
 
 describe('App con informes estáticos (flag source=reports)', () => {
@@ -319,31 +418,32 @@ describe('App con informes estáticos (flag source=reports)', () => {
     expect(w.text()).toContain('Go')
   })
 
-  describe('ámbito (mundo / España)', () => {
+  describe('fuente (mundo / España)', () => {
     const withScopes = () => ({
       ...routes(),
       'reports/index.json': { reports: [
+        { id: '2025-es', label: 'Tranco 2025 · España', year: 2025, scope: 'es', tld: 'es', batch: 1, total: 40, finished: 30, failed: 10, tops: [] },
         { id: '2026', label: 'Tranco 2026 · mundo', year: 2026, scope: 'all', batch: 1, total: 1000, finished: 900, failed: 100, tops: [100, 1000] },
         { id: '2026-es', label: 'Tranco 2026 · España', year: 2026, scope: 'es', tld: 'es', batch: 1, total: 50, finished: 40, failed: 10, tops: [1000] },
-        { id: '2025-es', label: 'Tranco 2025 · España', year: 2025, scope: 'es', tld: 'es', batch: 1, total: 40, finished: 30, failed: 10, tops: [] },
       ] },
       'reports/2026-es/top-all.json': { ...cutFile(null, 40), report: '2026-es', tld: 'es' },
       'reports/2026-es/top-1000.json': { ...cutFile(1000, 35), report: '2026-es', tld: 'es' },
     })
 
-    it('sin varios ámbitos no se muestra el selector', async () => {
+    it('sin varias fuentes no se muestra el selector', async () => {
       mockApi(routes())
       const w = mount(App)
       await flushPromises()
-      expect(w.find('select[aria-label="Ámbito"]').exists()).toBe(false)
+      expect(w.find('select[aria-label="Fuente"]').exists()).toBe(false)
     })
 
-    it('con varios ámbitos lista Mundo y España y solo los informes del ámbito activo', async () => {
+    it('con varias fuentes lista Mundo y España y solo los informes de la fuente activa', async () => {
       mockApi(withScopes())
       const w = mount(App)
       await flushPromises()
-      const scope = w.find('select[aria-label="Ámbito"]')
-      expect(scope.findAll('option').map((o) => o.text())).toEqual(['Mundo', 'España (.es)'])
+      const scope = w.find('select[aria-label="Fuente"]')
+      // orden fijo (Mundo, España), aunque el índice liste antes un informe de España
+      expect(scope.findAll('option').map((o) => o.text())).toEqual(['Mundo (Tranco)', 'España 2026 (Red.es)'])
       expect(scope.element.value).toBe('all')
       expect(w.find('select[aria-label="Informe"]').findAll('option')).toHaveLength(1)
     })
@@ -352,7 +452,7 @@ describe('App con informes estáticos (flag source=reports)', () => {
       mockApi(withScopes())
       const w = mount(App)
       await flushPromises()
-      await w.find('select[aria-label="Ámbito"]').setValue('es')
+      await w.find('select[aria-label="Fuente"]').setValue('es')
       await flushPromises()
       expect(w.find('select[aria-label="Informe"]').element.value).toBe('2026-es')
       expect(w.find('select[aria-label="Informe"]').findAll('option')).toHaveLength(2)
@@ -360,22 +460,22 @@ describe('App con informes estáticos (flag source=reports)', () => {
       expect(new URLSearchParams(window.location.search).get('report')).toBe('2026-es')
     })
 
-    it('en el ámbito España no hay selector de nº de sitios, y sí en Mundo', async () => {
+    it('con la fuente España no hay selector de nº de sitios, y sí en Mundo', async () => {
       mockApi(withScopes())
       const w = mount(App)
       await flushPromises()
       expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(true)
-      await w.find('select[aria-label="Ámbito"]').setValue('es')
+      await w.find('select[aria-label="Fuente"]').setValue('es')
       await flushPromises()
       expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(false)
     })
 
-    it('una URL con ?report=2026-es abre directamente el ámbito España', async () => {
+    it('una URL con ?report=2026-es abre directamente la fuente España', async () => {
       mockApi(withScopes())
       window.history.replaceState(null, '', '/?report=2026-es')
       const w = mount(App)
       await flushPromises()
-      expect(w.find('select[aria-label="Ámbito"]').element.value).toBe('es')
+      expect(w.find('select[aria-label="Fuente"]').element.value).toBe('es')
       expect(w.find('select[aria-label="Informe"]').element.value).toBe('2026-es')
     })
   })

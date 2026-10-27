@@ -152,3 +152,36 @@ def test_cli_accepts_max_position(db, tmp_path, monkeypatch):
     monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
     assert main(["--batch", "1", "--id", "2026", "--max-position", "2", "--out", str(tmp_path)]) == 0
     assert read(tmp_path / "index.json")["reports"][0]["total"] == 2
+
+
+def seed_sources():
+    Site(url="a.com", position=1, batch=1, finished=True, tech=["PHP"], sources=["tranco"]).save()
+    Site(url="b.es", position=2, batch=1, finished=True, tech=["Go"], sources=["tranco", "risp2026"]).save()
+    Site(url="c.es", position=3_000_000, batch=1, finished=True, tech=["Rust"], sources=["risp2026"]).save()
+    Site(url="d.es", position=3_000_001, batch=1, finished=False, retries=1, sources=["risp2026"]).save()
+    Site(url="e.es", position=3_000_002, batch=1, finished=True, tech=["Zig"], sources=["risp2020"]).save()
+
+
+def test_source_report_counts_only_that_source_and_is_labelled_as_scope(service, tmp_path):
+    seed_sources()
+    entry = export_report(service, "2026-es", "España 2026", batch=1, out_dir=tmp_path, year=2026, source="risp2026", scope="es", steps=[])
+    assert entry["scope"] == "es" and entry["source"] == "risp2026"
+    assert (entry["total"], entry["finished"], entry["failed"]) == (3, 2, 1)
+    data = read(tmp_path / "2026-es" / "top-all.json")
+    assert data["source"] == "risp2026" and data["summary"]["total"] == 3
+    assert {i["tech"] for t in data["topics"] for i in t["items"]} == {"Go", "Rust"}  # sin PHP (tranco) ni Zig (risp2020)
+
+
+def test_scope_defaults_to_the_source_name_and_to_all_without_filters(service, tmp_path):
+    seed_sources()
+    assert export_report(service, "x", "x", batch=1, out_dir=tmp_path, source="risp2026", steps=[])["scope"] == "risp2026"
+    assert export_report(service, "y", "y", batch=1, out_dir=tmp_path, steps=[])["scope"] == "all"
+
+
+def test_cli_accepts_source_and_scope(db, tmp_path, monkeypatch):
+    seed_sources()
+    monkeypatch.setattr("wts_dashboard.report.connect_db", lambda: None)
+    monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
+    assert main(["--batch", "1", "--id", "2026-es", "--source", "risp2026", "--scope", "es", "--out", str(tmp_path)]) == 0
+    entry = read(tmp_path / "index.json")["reports"][0]
+    assert entry["scope"] == "es" and entry["source"] == "risp2026"

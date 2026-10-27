@@ -16,6 +16,7 @@ from webtechstats.topics import TOPICS
 from .service import DashboardService
 
 TLD_PATTERN = r"^[a-z][a-z0-9-]{0,23}$"  # sin puntos ni espacios: se compara literalmente
+SOURCE_PATTERN = r"^[a-z0-9_-]{1,40}$"  # nombre de listado (tag-sources): sin espacios ni símbolos
 
 # WTS_FRONTEND_DIST permite ubicar el frontend compilado fuera del árbol del código (imagen Docker).
 FRONTEND_DIST = Path(
@@ -55,8 +56,9 @@ def create_app(connect: bool = True, cache_ttl: float = 30.0, frontend_dist: Pat
         batch: int | None = None,
         max_position: int | None = Query(None, ge=1),
         tld: str | None = Query(None, pattern=TLD_PATTERN),
+        source: str | None = Query(None, pattern=SOURCE_PATTERN),
     ) -> dict:
-        return service.overview(batch, max_position, tld)
+        return service.overview(batch, max_position, tld, source)
 
     @app.get("/api/topics/{topic}")
     def topic_ranking(
@@ -66,10 +68,13 @@ def create_app(connect: bool = True, cache_ttl: float = 30.0, frontend_dist: Pat
         category: str | None = None,
         max_position: int | None = Query(None, ge=1),
         tld: str | None = Query(None, pattern=TLD_PATTERN),
+        source: str | None = Query(None, pattern=SOURCE_PATTERN),
     ) -> dict:
         if topic not in TOPICS:
             raise HTTPException(status_code=404, detail=f"Tema desconocido: {topic}")
-        return service.topic_ranking(topic, batch=batch, limit=limit, category=category, max_position=max_position, tld=tld)
+        return service.topic_ranking(
+            topic, batch=batch, limit=limit, category=category, max_position=max_position, tld=tld, source=source
+        )
 
     if frontend_dist is not None and (frontend_dist / "index.html").is_file():
         app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
