@@ -57,7 +57,7 @@ uv run webtechstats tag-sources --batch 1 --source tranco=top-1m.csv \
 ```
 
 ### `sources [--batch B]`
-Cuántos sitios hay por cada combinación de listados de origen (`risp2020 + risp2026: 752864`, `sin fuente: N`…), de mayor a menor: son los solapes entre fuentes (altas y bajas entre dos listados).
+Cuántos sitios hay por cada combinación de listados de origen y cuántos se analizaron (`risp2020 + risp2026: 752864 (analizados 450290)`, `sin fuente: N (analizados M)`…), de mayor a menor: son los solapes entre fuentes (altas y bajas entre dos listados).
 
 ### `scan [--limit N] [--batch B] [--workers W] [--processes P] [--retry-failed] [--max-retries M]`
 Escanea hasta `N` sitios pendientes (`finished=False`, por defecto 100) ordenados por posición.
@@ -73,8 +73,8 @@ Escanea hasta `N` sitios pendientes (`finished=False`, por defecto 100) ordenado
 
 Estados de un sitio dentro de un lote: **analizado** (`finished`, con resultado), **sin respuesta** (intentado sin éxito, `retries > 0`) y **pendiente** (nunca intentado, `retries = 0`); los tres suman el total.
 
-### `stats [--top N] [--batch B]`
-Totales (importados, finalizados, sin respuesta, pendientes, con tecnología) y ranking de las `N` tecnologías más frecuentes (por defecto 20). Sin `--batch` agrega todos los lotes, de modo que un dominio presente en dos lotes cuenta dos veces.
+### `stats [--top N] [--batch B] [--source NOMBRE]`
+Totales (importados, finalizados, sin respuesta, pendientes, con tecnología) y ranking de las `N` tecnologías más frecuentes (por defecto 20; `--top 0` falla porque MongoDB rechaza `$limit: 0`, usa 1). Sin `--batch` agrega todos los lotes, de modo que un dominio presente en dos lotes cuenta dos veces. `--source` limita a los dominios de ese listado (ver `tag-sources`). Al final, si hay sitios sin respuesta, **«Motivos de fallo»**: cuántos por clase del último error de la petición (`ConnectionError`, `ConnectTimeout`, `SSLError`…). Es la clase de excepción del cliente HTTP, no un diagnóstico de red: `ConnectionError` agrupa DNS que no resuelve, conexión rechazada o cortada.
 
 ### `detect URL`
 Detecta las tecnologías de una URL concreta sin tocar la base de datos. Código 1 si no responde.
@@ -99,12 +99,13 @@ Comando aparte, del proyecto `dashboard/` (no del CLI `webtechstats`): guarda un
 uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
 ```
 
-`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--source NOMBRE` (solo los dominios de ese listado, ver `tag-sources`), `--scope X` (valor que muestra el selector «Fuente»; por defecto el TLD, la fuente o `all`), `--tld` (p. ej. `es`: solo esos dominios), `--max-position N` (solo posiciones ≤ N del ranking, también en «todos») y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
+`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--source NOMBRE` (solo los dominios de ese listado, ver `tag-sources`), `--scope X` (valor que muestra el selector «Fuente»; por defecto el TLD, la fuente o `all`), `--tld` (solo los dominios que terminan así: `es`, o un sufijo de segundo nivel como `gob.es`), `--max-position N` (solo posiciones ≤ N del ranking, también en «todos»), `--no-cuts` (solo `top-all.json`, sin los cortes por posición: lo normal para sufijos pequeños) y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
 
 Gráficas para el blog (SVG + PNG) a partir de esos informes, sin MongoDB:
 
 ```bash
-uv run python scripts/generate_blog_charts.py --blog ~/WebstormProjects/blogv2
+uv run python scripts/generate_blog_charts.py --blog ~/WebstormProjects/blogv2              # serie 1: top 1M de Tranco
+uv run python scripts/generate_blog_charts.py --serie es --blog ~/WebstormProjects/blogv2   # serie 2: dominios .es de Red.es
 ```
 
-Escribe en `<blog>/src/content/blog/AAAA/MM/AAAA-MM-DD-<slug>/images/` (patrón año y mes) las imágenes de la serie definida en `scripts/generate_blog_charts.py`.
+Escribe en `<blog>/src/content/blog/AAAA/MM/AAAA-MM-DD-<slug>/images/` (patrón año y mes) las imágenes de la serie elegida, definida en `scripts/generate_blog_charts.py` (`SERIES` y `SERIES_ES`). La serie `es` lee además `reports-blog/` (solapes entre fuentes, motivos de fallo e informes por sufijo; ver su `README.md`).

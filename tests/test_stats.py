@@ -1,7 +1,7 @@
 # Autor: David Vaquero <pepesan@gmail.com>
 # Licencia: GPL-3.0-only
 from webtechstats.models import Site
-from webtechstats.stats import source_overlap, summary, top_technologies
+from webtechstats.stats import failure_reasons, source_overlap, summary, top_technologies
 
 
 def seed():
@@ -131,12 +131,30 @@ def test_source_overlap_counts_each_set_of_sources_regardless_of_order(db):
     seed_sources()
     Site(url="g.es", position=7, finished=True, sources=["cc", "risp2026"]).save()  # mismo conjunto que b.es, otro orden
     Site(url="h.es", position=8, batch=2, finished=True, sources=["cc"]).save()      # otro lote: no cuenta
-    # primero los conjuntos más frecuentes; a igual cuenta, por orden alfabético de las fuentes
+    # primero los conjuntos más frecuentes; a igual cuenta, por orden alfabético de las fuentes.
+    # `finished` = cuántos de esos sitios se analizaron con éxito (c.es, de risp2026, no respondió)
     assert source_overlap(batch=1) == [
-        {"sources": ["cc", "risp2026"], "count": 2},
-        {"sources": [], "count": 1},
-        {"sources": ["risp2020"], "count": 1},
-        {"sources": ["risp2026"], "count": 1},
-        {"sources": ["risp2026", "tranco"], "count": 1},
-        {"sources": ["tranco"], "count": 1},
+        {"sources": ["cc", "risp2026"], "count": 2, "finished": 2},
+        {"sources": [], "count": 1, "finished": 1},
+        {"sources": ["risp2020"], "count": 1, "finished": 1},
+        {"sources": ["risp2026"], "count": 1, "finished": 0},
+        {"sources": ["risp2026", "tranco"], "count": 1, "finished": 1},
+        {"sources": ["tranco"], "count": 1, "finished": 1},
     ]
+
+
+def test_failure_reasons_counts_unanswered_sites_by_last_error(db):
+    Site(url="a.es", position=1, retries=2, discard_reason="ConnectionError", sources=["risp2026"]).save()
+    Site(url="b.es", position=2, retries=1, discard_reason="ConnectionError", sources=["risp2026"]).save()
+    Site(url="c.es", position=3, retries=1, discard_reason="SSLError", sources=["risp2026"]).save()
+    Site(url="d.es", position=4, retries=1, discard_reason="ReadTimeout", sources=["tranco"]).save()
+    Site(url="e.es", position=5, retries=1, sources=["risp2026"]).save()                      # sin motivo guardado
+    Site(url="f.es", position=6, finished=True, tech=["PHP"], sources=["risp2026"]).save()    # analizado: no cuenta
+    Site(url="g.es", position=7, sources=["risp2026"]).save()                                 # pendiente: no cuenta
+    assert failure_reasons(source="risp2026") == [
+        {"reason": "ConnectionError", "count": 2},
+        {"reason": "SSLError", "count": 1},
+        {"reason": "desconocido", "count": 1},
+    ]
+    assert sum(r["count"] for r in failure_reasons()) == 5  # todas las fuentes
+    assert failure_reasons(batch=2) == []

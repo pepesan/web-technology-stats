@@ -8,6 +8,7 @@ barras finas con extremo redondeado, etiquetas directas y ejes discretos. Texto 
 
 import json
 import math
+import re
 from datetime import date
 from pathlib import Path
 
@@ -247,3 +248,49 @@ def draw_values(rows: list[tuple[str, float, str]], title: str, subtitle: str, s
     ax.spines["bottom"].set_visible(False)
     _titles(fig, title, subtitle)
     return _finish(fig, stem)
+
+
+# ---------- serie de España: datos de los comandos `sources` y `stats --source` ----------
+
+def parse_overlap(text: str) -> list[tuple[list[str], int, int]]:
+    """Lee la salida de `webtechstats sources`: líneas «a + b: N (analizados M)» → (fuentes, sitios, analizados)."""
+    rows = []
+    for line in text.splitlines():
+        m = re.fullmatch(r"(.+): (\d+) \(analizados (\d+)\)", line.strip())
+        if m:
+            label = m.group(1)
+            rows.append(([] if label == "sin fuente" else label.split(" + "), int(m.group(2)), int(m.group(3))))
+    return rows
+
+
+def cohorts(rows: list[tuple[list[str], int, int]], new: str, old: str) -> dict[str, tuple[int, int]]:
+    """Parte los dominios de dos listados en altas (solo en `new`), permanentes (en los dos) y bajas (solo en `old`).
+
+    Cada grupo es (sitios, analizados).
+    """
+    groups = {"altas": [0, 0], "permanentes": [0, 0], "bajas": [0, 0]}
+    for sources, count, finished in rows:
+        if new in sources and old not in sources:
+            name = "altas"
+        elif new in sources and old in sources:
+            name = "permanentes"
+        elif old in sources:
+            name = "bajas"
+        else:
+            continue
+        groups[name][0] += count
+        groups[name][1] += finished
+    return {name: (count, finished) for name, (count, finished) in groups.items()}
+
+
+def parse_failure_reasons(text: str) -> list[tuple[str, int]]:
+    """Lee la sección «Motivos de fallo:» de `webtechstats stats` → (clase de error, sitios), de más a menos."""
+    reasons, inside = [], False
+    for line in text.splitlines():
+        if line.startswith("Motivos de fallo:"):
+            inside = True
+        elif inside:
+            m = re.fullmatch(r"\s+(\S+)\s+(\d+)", line)
+            if m:
+                reasons.append((m.group(1), int(m.group(2))))
+    return reasons

@@ -185,3 +185,23 @@ def test_cli_accepts_source_and_scope(db, tmp_path, monkeypatch):
     assert main(["--batch", "1", "--id", "2026-es", "--source", "risp2026", "--scope", "es", "--out", str(tmp_path)]) == 0
     entry = read(tmp_path / "index.json")["reports"][0]
     assert entry["scope"] == "es" and entry["source"] == "risp2026"
+
+
+def test_report_for_a_dotted_suffix_counts_only_those_domains(service, tmp_path):
+    Site(url="a.gob.es", position=1, batch=1, finished=True, tech=["PHP"]).save()
+    Site(url="b.gob.es", position=2, batch=1, finished=True, tech=["Go"]).save()
+    Site(url="c.es", position=3, batch=1, finished=True, tech=["Rust"]).save()
+    Site(url="gob.es.com", position=4, batch=1, finished=True, tech=["Zig"]).save()  # contiene «gob.es» pero no termina en .gob.es
+    entry = export_report(service, "gob-es", "Administración", batch=1, out_dir=tmp_path, tld="gob.es", scope="gob-es", steps=[])
+    assert (entry["scope"], entry["total"], entry["finished"]) == ("gob-es", 2, 2)
+    data = read(tmp_path / "gob-es" / "top-all.json")
+    assert {i["tech"] for t in data["topics"] for i in t["items"]} == {"PHP", "Go"}
+
+
+def test_cli_no_cuts_writes_only_the_whole_report(db, tmp_path, monkeypatch):
+    seed_sources()
+    monkeypatch.setattr("wts_dashboard.report.connect_db", lambda: None)
+    monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
+    assert main(["--batch", "1", "--id", "x", "--source", "risp2026", "--no-cuts", "--out", str(tmp_path)]) == 0
+    assert [p.name for p in (tmp_path / "x").iterdir()] == ["top-all.json"]
+    assert read(tmp_path / "index.json")["reports"][0]["tops"] == []

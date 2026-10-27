@@ -143,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source", help="solo dominios de ese listado (campo `sources`, ver `tag-sources`; p. ej. risp2026)")
     parser.add_argument("--scope", help="ámbito que muestra el selector «Fuente» (p. ej. es); por defecto el TLD, la fuente o «all»")
     parser.add_argument("--max-position", type=int, help="solo posiciones <= N del ranking (p. ej. 1000000 = solo el Tranco)")
+    parser.add_argument("--no-cuts", action="store_true", help="solo el informe completo (top-all.json), sin los cortes por posición del ranking")
     parser.add_argument("--out", default="reports", help="carpeta de salida (por defecto ./reports)")
     args = parser.parse_args(argv)
     connect_db()
@@ -150,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         entry = export_report(
             DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year,
             tld=args.tld, max_position=args.max_position, source=args.source, scope=args.scope,
+            steps=[] if args.no_cuts else None,
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

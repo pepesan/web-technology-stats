@@ -378,5 +378,22 @@ def test_tag_sources_requires_name_equals_file(seeded_connection, tmp_path):
 def test_sources_prints_the_overlap_between_sources(seeded_connection):
     result = run("sources", "--batch", "1")
     assert result.exit_code == 0, result.output
-    assert "risp2026 + tranco: 1" in result.output  # fuentes en orden alfabético
-    assert "sin fuente: 1" in result.output
+    assert "risp2026 + tranco: 1 (analizados 0)" in result.output  # fuentes en orden alfabético
+    assert "sin fuente: 1 (analizados 0)" in result.output
+
+
+def test_stats_by_source_prints_totals_and_failure_reasons(monkeypatch):
+    from webtechstats.db import init_db
+
+    def connect():
+        init_db(mongo_client_class=mongomock.MongoClient)
+        Site(url="a.es", position=1, batch=1, finished=True, tech=["PHP"], sources=["risp2026"]).save()
+        Site(url="b.es", position=2, batch=1, retries=1, discard_reason="ConnectionError", sources=["risp2026"]).save()
+        Site(url="c.es", position=3, batch=1, retries=1, discard_reason="ConnectionError", sources=["risp2026"]).save()
+        Site(url="d.com", position=4, batch=1, finished=True, tech=["Go"], sources=["tranco"]).save()
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    result = run("stats", "--batch", "1", "--source", "risp2026")
+    assert result.exit_code == 0, result.output
+    assert "Total:              3" in result.output and "PHP" in result.output and "Go" not in result.output
+    assert "Motivos de fallo:" in result.output and "ConnectionError" in result.output

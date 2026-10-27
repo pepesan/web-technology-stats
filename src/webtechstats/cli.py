@@ -22,7 +22,7 @@ from .locks import ScanAlreadyRunning, scan_lock
 from .logs import log_filename, setup_logging
 from .parallel import ShardFailed, kill_children, run_sharded
 from .detection import scan_pending_sites
-from .stats import source_overlap, summary, top_technologies
+from .stats import failure_reasons, source_overlap, summary, top_technologies
 from .wappalyzer import Wappalyzer
 
 
@@ -252,11 +252,12 @@ def scan_cmd(
 @main.command("stats")
 @click.option("--top", type=int, default=20, show_default=True, help="Número de tecnologías más frecuentes a mostrar.")
 @click.option("--batch", type=int, default=None, help="Estadísticas solo de este lote (por defecto: todos los lotes).")
-def stats_cmd(top: int, batch: int | None) -> None:
+@click.option("--source", default=None, help="Solo los dominios de ese listado (campo `sources`, ver `tag-sources`).")
+def stats_cmd(top: int, batch: int | None, source: str | None) -> None:
     """Muestra totales de sitios y el ranking de tecnologías más detectadas."""
     _start_log("stats", batch)
     _connect()
-    data = summary(batch=batch)
+    data = summary(batch=batch, source=source)
     click.echo("Resumen:")
     click.echo(f"  Total:              {data['total']}")
     click.echo(f"  Finalizados:        {data['finished']}")
@@ -265,8 +266,14 @@ def stats_cmd(top: int, batch: int | None) -> None:
     click.echo(f"  Con tecnología:     {data['finished_with_tech']}")
 
     click.echo(f"\nTop {top} tecnologías:")
-    for row in top_technologies(top=top, batch=batch):
+    for row in top_technologies(top=top, batch=batch, source=source):
         click.echo(f"  {row['tech']:<30} {row['count']}")
+
+    reasons = failure_reasons(batch=batch, source=source)
+    if reasons:
+        click.echo("\nMotivos de fallo:")
+        for row in reasons:
+            click.echo(f"  {row['reason']:<30} {row['count']}")
     close_db()
 
 
@@ -308,7 +315,7 @@ def sources_cmd(batch: int | None) -> None:
     _start_log("sources", batch)
     _connect()
     for row in source_overlap(batch=batch):
-        click.echo(f"{' + '.join(row['sources']) or 'sin fuente'}: {row['count']}")
+        click.echo(f"{' + '.join(row['sources']) or 'sin fuente'}: {row['count']} (analizados {row['finished']})")
     close_db()
 
 

@@ -1,0 +1,22 @@
+Resumen:
+  Total:              2125673
+  Finalizados:        1315675
+  Sin respuesta:      809998
+  Pendientes:         0
+  Con tecnología:     1235738
+
+Top 1 tecnologías:
+  Apache HTTP Server             499809
+
+Motivos de fallo:
+  ConnectionError                705241
+  ConnectTimeout                 84450
+  SSLError                       13316
+  ReadTimeout                    6283
+  TooManyRedirects               656
+  ChunkedEncodingError           20
+  InvalidURL                     16
+  LocationParseError             8
+  ContentDecodingError           5
+  InvalidSchema                  2
+  UnicodeDecodeError             1

@@ -166,3 +166,65 @@ def test_frontmatter_follows_the_blog_convention():
     assert all(len(l) <= 80 for l in lines) and lines[1].startswith("  ") and lines[-1].endswith('"')
     with pytest.raises(ValueError):
         lib.frontmatter('con "comillas"', "x", date(2026, 1, 1), [], 1)
+
+
+# ---------- serie 2: dominios .es del registro oficial de Red.es ----------
+
+SOLAPES = """tranco: 994443 (analizados 846532)
+risp2026: 804902 (analizados 401680)
+risp2020 + risp2026: 752864 (analizados 450290)
+risp2020: 719651 (analizados 17395)
+cc + risp2020 + risp2026: 386611 (analizados 315368)
+cc + risp2026: 175843 (analizados 143224)
+sin fuente: 3 (analizados 1)
+"""
+
+
+def test_parse_overlap_reads_the_output_of_the_sources_command():
+    rows = bc.parse_overlap(SOLAPES)
+    assert rows[0] == (["tranco"], 994443, 846532)
+    assert rows[2] == (["risp2020", "risp2026"], 752864, 450290)
+    assert rows[-1] == ([], 3, 1)
+
+
+def test_cohorts_split_the_new_register_into_new_kept_and_dropped_domains():
+    cohorts = bc.cohorts(bc.parse_overlap(SOLAPES), "risp2026", "risp2020")
+    assert cohorts == {
+        "altas": (804902 + 175843, 401680 + 143224),          # en 2026 y no en 2020
+        "permanentes": (752864 + 386611, 450290 + 315368),    # en los dos
+        "bajas": (719651, 17395),                             # en 2020 y no en 2026
+    }
+
+
+def test_parse_failure_reasons_reads_the_stats_output():
+    text = "Resumen:\n  Total:              5\n\nMotivos de fallo:\n  ConnectionError                705241\n  ConnectTimeout                 84450\n"
+    assert bc.parse_failure_reasons(text) == [("ConnectionError", 705241), ("ConnectTimeout", 84450)]
+    assert bc.parse_failure_reasons("Resumen:\n  Total:              1\n") == []
+
+
+def test_series_es_is_a_well_formed_plan():
+    import generate_blog_charts as gen
+
+    slugs = [p.slug for p in gen.SERIES_ES]
+    dates = [p.date for p in gen.SERIES_ES]
+    assert len(slugs) == len(set(slugs)) == 8
+    assert dates == sorted(dates) and dates[0] >= date(2026, 10, 27)
+    assert all(slug and slug == slug.lower() and " " not in slug for slug in slugs)
+    assert not set(slugs) & {p.slug for p in gen.SERIES}  # no pisa las entradas de la serie 1
+
+
+REAL_BLOG = Path(__file__).resolve().parent.parent / "reports-blog" / "solapes-fuentes.txt"
+
+
+@pytest.mark.skipif(not (REAL.exists() and REAL_BLOG.exists()), reason="requiere reports/ y reports-blog/ reales")
+def test_series_es_generates_every_image_from_the_real_reports(tmp_path):
+    import generate_blog_charts as gen
+
+    written = gen.generate_es(tmp_path, REAL.parent, REAL_BLOG.parent)
+    files = [f for fs in written.values() for f in fs]
+    assert len(written) == 7  # el cierre (límites y ética) no lleva gráficas
+    assert files and all("/src/content/blog/2026/10/2026-10-27-" in f.as_posix() and "/images/" in f.as_posix() for f in files)
+    assert {f.suffix for f in files} == {".svg", ".png"}
+    # cada gráfica llega en pareja SVG + PNG
+    stems = {f.with_suffix("") for f in files}
+    assert all((s.with_suffix(".svg").exists() and s.with_suffix(".png").exists()) for s in stems)

@@ -104,14 +104,37 @@ def top_technologies(
 
 
 def source_overlap(batch: int | None = None) -> list[dict]:
-    """Cuántos sitios hay por cada combinación de listados de origen (`[]` = sin etiquetar).
+    """Cuántos sitios hay por cada combinación de listados de origen (`[]` = sin etiquetar), y cuántos se analizaron.
 
     El mismo conjunto cuenta junto aunque las fuentes se guardaran en otro orden. Más frecuentes primero.
     """
-    pipeline = [{"$match": {} if batch is None else {"batch": batch}}, {"$group": {"_id": "$sources", "count": {"$sum": 1}}}]
-    merged: dict[tuple, int] = {}
+    pipeline = [
+        {"$match": {} if batch is None else {"batch": batch}},
+        {"$group": {"_id": "$sources", "count": {"$sum": 1}, "finished": {"$sum": {"$cond": [{"$eq": ["$finished", True]}, 1, 0]}}}},
+    ]
+    merged: dict[tuple, list[int]] = {}
     for doc in Site._get_collection().aggregate(pipeline):
-        key = tuple(sorted(doc["_id"] or []))
-        merged[key] = merged.get(key, 0) + doc["count"]
-    ordered = sorted(merged.items(), key=lambda item: (-item[1], item[0]))
-    return [{"sources": list(key), "count": count} for key, count in ordered]
+        totals = merged.setdefault(tuple(sorted(doc["_id"] or [])), [0, 0])
+        totals[0] += doc["count"]
+        totals[1] += doc["finished"]
+    ordered = sorted(merged.items(), key=lambda item: (-item[1][0], item[0]))
+    return [{"sources": list(key), "count": count, "finished": finished} for key, (count, finished) in ordered]
+
+
+def failure_reasons(batch: int | None = None, source: str | None = None) -> list[dict]:
+    """Sitios intentados sin éxito ("sin respuesta"), agrupados por la clase del último error (`discard_reason`).
+
+    Es la clase de excepción de la petición HTTP (p. ej. `ConnectionError` agrupa DNS que no resuelve, conexión rechazada
+    o cortada), no un diagnóstico de red. Los más frecuentes primero.
+    """
+    match: dict = {"finished": False, "retries": {"$gt": 0}}
+    if batch is not None:
+        match["batch"] = batch
+    if source:
+        match["sources"] = source
+    pipeline = [
+        {"$match": match},
+        {"$group": {"_id": {"$ifNull": ["$discard_reason", "desconocido"]}, "count": {"$sum": 1}}},
+        {"$sort": {"count": -1, "_id": 1}},
+    ]
+    return [{"reason": doc["_id"], "count": doc["count"]} for doc in Site._get_collection().aggregate(pipeline)]
