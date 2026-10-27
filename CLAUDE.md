@@ -21,7 +21,7 @@ uv run webtechstats --help
 MongoDB (Docker, bind mount en `./data/mongodb`, gitignorado):
 ```bash
 ./00_init.sh          # primer arranque: crea ./data/mongodb, levanta compose.yaml, espera healthcheck
-./01_launch.sh        # arranques posteriores (requiere que 00_init.sh ya se haya ejecutado)
+./01_launch.sh        # arranques posteriores (requiere que 00_init.sh ya se haya ejecutado); si hay backup en data/backups/ y la base está vacía, carga el más reciente (SKIP_RESTORE=1 lo omite)
 ./99_destroy.sh        # docker compose down, conserva los datos
 ./99_destroy.sh --purge-data   # además borra ./data/mongodb (pide confirmación)
 ```

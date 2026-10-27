@@ -33,7 +33,7 @@ Después abre el dashboard en <http://127.0.0.1:8000>.
 | Script | Qué hace |
 |---|---|
 | `00_init.sh` | Primer arranque: crea `./data/mongodb`, levanta `compose.yaml`, espera al healthcheck y descarga `top-1m.csv` (Tranco, `TRANCO_URL` para cambiar el origen) si no existe |
-| `01_launch.sh` | Arranques posteriores |
+| `01_launch.sh` | Arranques posteriores. Si hay copias de seguridad (`webstats_*.archive.gz`) en `BACKUP_DIR` (por defecto `./data/backups`, ignorado por git) y la base está **vacía**, carga la más reciente tras comprobar su `.sha256`; nunca borra datos (sin `--drop`) y no toca una base que ya tiene sitios. Con backup, arranca aunque el directorio de datos se haya perdido (lo crea). `SKIP_RESTORE=1` lo desactiva |
 | `99_destroy.sh [--purge-data]` | `docker compose down`; con `--purge-data` borra también `./data/mongodb` |
 | `10_test.sh` | Tests del proyecto principal (`pytest`) |
 | `30_import_data.sh [LIMITE] [CSV] [LOTE]` | Importador genérico |

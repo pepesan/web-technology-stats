@@ -107,6 +107,105 @@ def test_launch_requires_the_configured_data_dir_and_names_it(sandbox, tmp_path)
     assert result.returncode == 0 and any("compose up -d" in c for c in calls)
 
 
+# ---------- 01_launch.sh: carga del backup si existe y la base está vacía ----------
+
+
+@pytest.fixture
+def restore_box(sandbox, tmp_path):
+    """`docker` falso que contesta al recuento de `mongosh` (FAKE_COUNT) y guarda lo que recibe `mongorestore`."""
+    restored = tmp_path / "restored.bin"
+    (sandbox.bin / "docker").write_text(
+        '#!/usr/bin/env bash\n'
+        f'echo "$@" >> "{sandbox.docker_calls}"\n'
+        'case "$*" in\n'
+        '  inspect*) echo healthy ;;\n'
+        '  *mongosh*) echo "${FAKE_COUNT:-0}" ;;\n'
+        f'  *mongorestore*) cat > "{restored}" ;;\n'
+        'esac\n'
+    )
+    data = tmp_path / "mongodb"
+    data.mkdir()
+    backups = tmp_path / "backups"
+    backups.mkdir()
+
+    def make_backup(name, content, checksum=True, listed_as=None):
+        """`listed_as`: ruta que escribe el .sha256 (el real, hecho con `sha256sum data/backups/<f>`, lleva la carpeta)."""
+        import hashlib
+
+        (backups / name).write_bytes(content)
+        if checksum:
+            (backups / f"{name}.sha256").write_text(f"{hashlib.sha256(content).hexdigest()}  {listed_as or name}\n")
+
+    class Box:
+        restored_file = restored
+        make = staticmethod(make_backup)
+
+        @staticmethod
+        def launch(**env):
+            return sandbox.run("01_launch.sh", MONGO_DATA_DIR=str(data), BACKUP_DIR=str(backups), **env)
+
+    Box.data = data
+    return Box
+
+
+def test_launch_restores_the_newest_backup_when_the_database_is_empty(restore_box):
+    restore_box.make("webstats_2026-10-26_10-00-00.archive.gz", b"viejo")
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo")
+    result, calls = restore_box.launch(FAKE_COUNT="0")
+    assert result.returncode == 0, result.stderr
+    assert restore_box.restored_file.read_bytes() == b"nuevo"
+    # la restauración no borra nada: nunca --drop
+    assert any("mongorestore" in c for c in calls) and not any("--drop" in c for c in calls)
+
+
+def test_launch_accepts_a_sha256_file_that_lists_the_path_it_was_made_from(restore_box):
+    # así lo genera el comando del PLAN: `sha256sum data/backups/<f> > <f>.sha256`, con la carpeta en el contenido
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo", listed_as="data/backups/webstats_2026-10-27_08-09-22.archive.gz")
+    result, _ = restore_box.launch(FAKE_COUNT="0")
+    assert result.returncode == 0, result.stderr
+    assert restore_box.restored_file.read_bytes() == b"nuevo"
+
+
+def test_launch_keeps_existing_data_and_does_not_restore(restore_box):
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo")
+    result, calls = restore_box.launch(FAKE_COUNT="4011304")
+    assert result.returncode == 0, result.stderr
+    assert not any("mongorestore" in c for c in calls)
+    assert not restore_box.restored_file.exists()
+
+
+def test_launch_without_backups_behaves_as_before(restore_box):
+    result, calls = restore_box.launch(FAKE_COUNT="0")
+    assert result.returncode == 0, result.stderr
+    assert not any("mongosh" in c or "mongorestore" in c for c in calls)
+
+
+def test_launch_with_a_backup_starts_even_if_the_data_dir_was_lost(restore_box):
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo")
+    import shutil
+
+    shutil.rmtree(restore_box.data)
+    result, _ = restore_box.launch(FAKE_COUNT="0")
+    assert result.returncode == 0, result.stderr
+    assert restore_box.data.is_dir()  # lo crea el script (si no, docker lo crearía como root)
+    assert restore_box.restored_file.read_bytes() == b"nuevo"
+
+
+def test_launch_refuses_a_backup_whose_checksum_does_not_match(restore_box):
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo")
+    (restore_box.restored_file.parent / "backups" / "webstats_2026-10-27_08-09-22.archive.gz").write_bytes(b"corrupto")
+    result, calls = restore_box.launch(FAKE_COUNT="0")
+    assert result.returncode == 1 and "sha256" in result.stderr.lower()
+    assert not any("mongorestore" in c for c in calls)
+
+
+def test_skip_restore_ignores_the_backups(restore_box):
+    restore_box.make("webstats_2026-10-27_08-09-22.archive.gz", b"nuevo")
+    result, calls = restore_box.launch(FAKE_COUNT="0", SKIP_RESTORE="1")
+    assert result.returncode == 0, result.stderr
+    assert not any("mongosh" in c or "mongorestore" in c for c in calls)
+
+
 def test_purge_removes_only_the_configured_data_dir(sandbox, tmp_path):
     data = tmp_path / "mongodb"
     data.mkdir()
