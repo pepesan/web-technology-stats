@@ -26,11 +26,18 @@ const category = ref('')
 const loading = ref(true)
 const error = ref('')
 
-const scopes = computed(() => [...new Set(options.value.map((o) => o.scope).filter(Boolean))])
+const scopes = computed(
+  () => source.value?.scopes ?? [...new Set(options.value.map((o) => o.scope).filter(Boolean))],
+)
+// solo los informes estáticos llevan el ámbito en cada opción; en modo API el ámbito es un filtro aparte
 const visibleOptions = computed(() =>
-  scopes.value.length > 1 ? options.value.filter((o) => o.scope === scope.value) : options.value,
+  options.value.some((o) => o.scope) && scopes.value.length > 1
+    ? options.value.filter((o) => o.scope === scope.value)
+    : options.value,
 )
 const topSteps = computed(() => (source.value ? source.value.topSteps(current.value) : []))
+// con un ámbito acotado (.es) el corte por posición del ranking mundial no tiene sentido: no se ofrece
+const scoped = computed(() => scope.value !== '' && scope.value !== 'all')
 const coverage = computed(() =>
   overview.value && overview.value.total
     ? fmtPct((100 * overview.value.finished) / overview.value.total)
@@ -38,12 +45,13 @@ const coverage = computed(() =>
 )
 
 async function loadOverview() {
-  overview.value = await source.value.overview(current.value, top.value)
+  overview.value = await source.value.overview(current.value, top.value, scope.value)
 }
 async function loadRanking() {
   ranking.value = await source.value.topic(current.value, top.value, topic.value, {
     limit: limit.value,
     category: category.value,
+    scope: scope.value,
   })
 }
 async function run(fn) {
@@ -70,7 +78,7 @@ function initialCurrent(list) {
 }
 function initialTop() {
   const wanted = Number(new URLSearchParams(window.location.search).get('top'))
-  return topSteps.value.includes(wanted) ? wanted : ''
+  return !scoped.value && topSteps.value.includes(wanted) ? wanted : ''
 }
 function syncUrl() {
   const url = new URL(window.location.href)
@@ -98,11 +106,11 @@ watch(scope, () => {
   const same = visibleOptions.value.find((o) => o.year === year)
   current.value = (same ?? visibleOptions.value[visibleOptions.value.length - 1])?.value ?? current.value
 })
-watch(current, () => {
-  // el corte elegido puede no existir en el otro informe
-  if (top.value !== '' && !topSteps.value.includes(top.value)) top.value = ''
+watch([current, scope], () => {
+  // el corte por posición mundial solo tiene sentido en el ámbito Mundo; el elegido puede no existir en el otro informe
+  if (top.value !== '' && (scoped.value || !topSteps.value.includes(top.value))) top.value = ''
 })
-watch([current, top], () => {
+watch([current, top, scope], () => {
   if (!source.value) return
   syncUrl()
   limit.value = PAGE
@@ -140,7 +148,7 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
             <option v-for="o in visibleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
-        <label class="batch">
+        <label class="batch" v-if="!scoped">
           <span>Nº de sitios</span>
           <select v-model="top" aria-label="Número de sitios">
             <option value="">Todos</option>
@@ -151,6 +159,8 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
     </header>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
+
+    <div v-if="loading && overview" class="progress" aria-hidden="true"></div>
 
     <template v-if="overview">
       <section class="tiles" aria-label="Resumen">
@@ -174,7 +184,7 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
       <template v-else>
         <TopicTabs v-model="topic" :topics="overview.topics" />
 
-        <section class="panel" :aria-busy="loading">
+        <section class="panel" :class="{ refreshing: loading }" :aria-busy="loading">
           <div class="panel-head" v-if="ranking">
             <h2>{{ ranking.label }}</h2>
             <p class="sub">
@@ -200,7 +210,18 @@ const canShowMore = computed(() => ranking.value && ranking.value.total_items > 
       </template>
     </template>
 
-    <p v-else-if="loading" class="empty">Cargando…</p>
+    <div v-else-if="loading" class="skeleton" role="status" aria-label="Cargando datos">
+      <div class="tiles">
+        <div v-for="n in 6" :key="n" class="sk sk-tile"></div>
+      </div>
+      <div class="sk-tabs">
+        <div v-for="n in 6" :key="n" class="sk sk-tab"></div>
+      </div>
+      <div class="panel">
+        <div class="sk sk-title"></div>
+        <div v-for="n in 8" :key="n" class="sk sk-bar" :style="{ width: 100 - n * 9 + '%' }"></div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -276,5 +297,36 @@ select {
   .tiles { grid-template-columns: repeat(2, 1fr); }
   h1 { font-size: 22px; }
   .panel { padding: 12px; }
+}
+.skeleton { display: flex; flex-direction: column; gap: 20px; }
+.sk {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--track) 25%, var(--border) 50%, var(--track) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+.sk-tile { height: 84px; border-radius: 12px; }
+.sk-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.sk-tab { height: 40px; width: 110px; }
+.sk-title { height: 22px; width: 40%; margin-bottom: 8px; }
+.sk-bar { height: 22px; min-width: 15%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: slide 1s ease-in-out infinite;
+  z-index: 10;
+}
+@keyframes slide { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+.panel { transition: opacity 0.15s; }
+.panel.refreshing { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) {
+  .sk, .progress { animation: none; }
 }
 </style>

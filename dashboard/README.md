@@ -21,10 +21,12 @@ Un informe es la foto de un lote: un JSON por corte del ranking (`top-100.json`,
 
 ```bash
 # desde la raíz del repo, con MongoDB arrancado
-uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
+uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026 · mundo" --year 2026 --max-position 1000000 --out reports
 ```
 
-Con `--tld es` se exporta un informe de **ámbito acotado** (solo dominios `.es` del lote), por ejemplo `--id 2026-es --tld es`. Se omiten los cortes con menos de 30 sitios analizados (los `.es` casi no llegan al Top 100/1k). El `index.json` marca cada informe con `scope` (`all` o el TLD) y el frontend muestra el selector **«Ámbito»** (Mundo / España (.es)) cuando hay más de uno; al cambiar de ámbito abre el informe del mismo año.
+`--max-position N` acota todo el informe (también «todos») a las posiciones ≤ N del ranking. El lote 1 contiene el Tranco (posiciones 1–1.000.000) y, a continuación, dominios `.es` añadidos fuera de él (posiciones > 1M); con `--max-position 1000000` el informe «mundo» es solo el Tranco.
+
+Con `--tld es` se exporta un informe de **ámbito acotado** (solo dominios `.es` del lote, también los de fuera del Tranco), por ejemplo `--id 2026-es --tld es`. Se omiten los cortes con menos de 30 sitios analizados (los `.es` casi no llegan al Top 100/1k). El `index.json` marca cada informe con `scope` (`all` o el TLD) y el frontend muestra el selector **«Ámbito»** (Mundo / España (.es)) cuando hay más de uno; al cambiar de ámbito abre el informe del mismo año. Con un ámbito acotado el selector «Nº de sitios» se oculta (el corte por posición mundial no tiene sentido para los `.es`); es igual en modo `api`, donde «España» pasa `tld=es` a la API.
 
 Volver a exportar el mismo `--id` lo sustituye; ids distintos se acumulan en `index.json` (ordenados por año). Los informes se versionan en git (`reports/`): son lo único que no se regenera sin repetir el escaneo.
 

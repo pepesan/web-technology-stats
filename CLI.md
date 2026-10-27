@@ -41,10 +41,11 @@ Plantilla: `webtechstats.example.toml`.
 ### `init-db`
 Comprueba la conexión, crea los índices y migra el esquema antiguo (índice único solo por `url`) al actual `(url, batch)`. Sale con código 1 si no hay conexión.
 
-### `import-sites --file CSV [--limit N] [--batch B]`
+### `import-sites --file CSV [--file CSV2 ...] [--limit N] [--batch B] [--unique]`
 Importa `posición,dominio` como sitios pendientes del lote `B` (por defecto 1).
 - Inserta por bloques (`insert_many`, `ordered=False`) y es **idempotente por lote**: lo ya importado en ese lote se omite.
 - El mismo dominio puede importarse en otro lote; cada lote tiene sus propios resultados.
+- `--unique`: admite varios `--file` (CSV `posicion,dominio` o listado RISP, del que solo se lee el dominio), los une sin repetir dominios y omite los que ya estén en la BBDD en cualquier lote. La posición es el orden de aparición.
 - Salida: `Leídos | Importados | Ya existentes (omitidos)`.
 
 ### `scan [--limit N] [--batch B] [--workers W] [--processes P] [--retry-failed] [--max-retries M]`
@@ -87,7 +88,7 @@ Comando aparte, del proyecto `dashboard/` (no del CLI `webtechstats`): guarda un
 uv run --project dashboard wts-export-report --batch 1 --id 2026 --label "Tranco 2026" --year 2026 --out reports
 ```
 
-`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--tld` (p. ej. `es`: solo esos dominios, informe de ámbito acotado) y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
+`--batch` y `--id` son obligatorios; `--label` (por defecto el id), `--year` (por defecto el actual), `--tld` (p. ej. `es`: solo esos dominios, informe de ámbito acotado), `--max-position N` (solo posiciones ≤ N del ranking, también en «todos») y `--out` (por defecto `./reports`) son opcionales. Escribe `<out>/<id>/top-<N>.json` por cada corte (100, 1k, 10k, 100k, 200k … 1M, solo los que caben en el lote) y `top-all.json`, y actualiza `<out>/index.json`. Ver [dashboard/README.md](dashboard/README.md).
 
 Gráficas para el blog (SVG + PNG) a partir de esos informes, sin MongoDB:
 

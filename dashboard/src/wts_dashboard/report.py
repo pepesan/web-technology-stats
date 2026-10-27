@@ -78,8 +78,13 @@ def export_report(
     steps: list[int] | None = None,
     tld: str | None = None,
     min_sites: int | None = None,
+    max_position: int | None = None,
 ) -> dict:
-    """Escribe el informe del lote y actualiza `index.json`. Devuelve la entrada del índice."""
+    """Escribe el informe del lote y actualiza `index.json`. Devuelve la entrada del índice.
+
+    `max_position` acota todo el informe (también «todos») a las posiciones <= N del ranking: así un informe
+    «mundo» puede ser solo el Tranco aunque el lote incluya además dominios añadidos fuera de él.
+    """
     if not _ID.match(report_id or ""):
         raise ValueError(f"identificador de informe no válido: {report_id!r}")
     info = next((b for b in batch_info() if b["batch"] == batch), None)
@@ -90,13 +95,13 @@ def export_report(
     min_sites = (30 if tld else 0) if min_sites is None else min_sites
     tops = []
     for n in (TOP_STEPS if steps is None else steps):
-        if n > info["total"]:
+        if n > info["total"] or (max_position is not None and n > max_position):
             continue
         cut = _cut(service, report_id, batch, n, tld)
         if cut["summary"]["finished"] >= max(min_sites, 1):
             _write(out_dir / report_id / f"top-{n}.json", cut)
             tops.append(n)
-    everything = _cut(service, report_id, batch, None, tld)
+    everything = _cut(service, report_id, batch, max_position, tld)
     _write(out_dir / report_id / "top-all.json", everything)
     totals = everything["summary"]
 
@@ -129,12 +134,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--label", help="etiqueta visible (por defecto, el identificador)")
     parser.add_argument("--year", type=int, help="año del informe (por defecto, el actual)")
     parser.add_argument("--tld", help="solo dominios .TLD (p. ej. es); genera un informe de ámbito acotado")
+    parser.add_argument("--max-position", type=int, help="solo posiciones <= N del ranking (p. ej. 1000000 = solo el Tranco)")
     parser.add_argument("--out", default="reports", help="carpeta de salida (por defecto ./reports)")
     args = parser.parse_args(argv)
     connect_db()
     try:
         entry = export_report(
-            DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year, tld=args.tld
+            DashboardService(cache_ttl=3600), args.id, args.label or args.id, args.batch, Path(args.out), args.year,
+            tld=args.tld, max_position=args.max_position,
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

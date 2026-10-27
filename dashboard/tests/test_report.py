@@ -134,3 +134,21 @@ def test_cli_accepts_tld(db, tmp_path, monkeypatch):
     monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
     assert main(["--batch", "5", "--id", "2026-es", "--tld", "es", "--out", str(tmp_path)]) == 0
     assert read(tmp_path / "index.json")["reports"][0]["scope"] == "es"
+
+
+def test_max_position_limits_the_whole_report_not_only_the_cuts(service, tmp_path):
+    seed()  # posiciones 1..4
+    entry = export_report(service, "2026", "Tranco 2026", batch=1, out_dir=tmp_path, year=2026, steps=[1, 2, 4], max_position=2)
+    # «todos» ya está acotado a las 2 primeras posiciones y no se ofrecen cortes mayores
+    assert entry["tops"] == [1, 2]
+    assert entry["total"] == 2
+    assert read(tmp_path / "2026" / "top-all.json")["max_position"] == 2
+    assert not (tmp_path / "2026" / "top-4.json").exists()
+
+
+def test_cli_accepts_max_position(db, tmp_path, monkeypatch):
+    seed()
+    monkeypatch.setattr("wts_dashboard.report.connect_db", lambda: None)
+    monkeypatch.setattr("wts_dashboard.report.disconnect_db", lambda: None)
+    assert main(["--batch", "1", "--id", "2026", "--max-position", "2", "--out", str(tmp_path)]) == 0
+    assert read(tmp_path / "index.json")["reports"][0]["total"] == 2

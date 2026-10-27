@@ -50,7 +50,7 @@ describe('App', () => {
     await flushPromises()
     expect(w.text()).toContain('Sitios analizados')
     expect(w.text()).toContain('PHP')
-    const options = w.findAll('option').map((o) => o.text())
+    const options = w.findAll('select[aria-label="Lote"] option').map((o) => o.text())
     expect(options[0]).toBe('Todos los lotes')
     expect(options[1]).toContain('Lote 1')
     expect(options[2]).toMatch(/Lote 2 · 4 de 10 analizados · 2026-10-25/)
@@ -72,10 +72,10 @@ describe('App', () => {
     // por defecto abre el último lote y lo refleja en la URL
     expect(fetch.mock.calls.map((c) => c[0])).toContain('/api/overview?batch=2')
     expect(window.location.search).toBe('?batch=2')
-    await w.find('select').setValue(1)
+    await w.find('select[aria-label="Lote"]').setValue(1)
     await flushPromises()
     expect(window.location.search).toBe('?batch=1')
-    await w.find('select').setValue('')
+    await w.find('select[aria-label="Lote"]').setValue('')
     await flushPromises()
     expect(window.location.search).toBe('?batch=all')
     const urls = fetch.mock.calls.map((c) => c[0])
@@ -161,6 +161,49 @@ describe('App', () => {
     expect(urls.some((u) => u.startsWith('/api/overview') && u.includes('max_position=1000'))).toBe(true)
     expect(urls.some((u) => u.startsWith('/api/topics/lang_back') && u.includes('max_position=1000'))).toBe(true)
     expect(new URLSearchParams(window.location.search).get('top')).toBe('1000')
+  })
+
+  it('modo API: el selector de ámbito filtra por TLD en overview y ranking', async () => {
+    mockApi({
+      '/api/batches': BATCHES,
+      '/api/overview': overview(),
+      '/api/topics/lang_back': ranking('lang_back', 'Lenguajes de back', []),
+    })
+    const w = mount(App)
+    await flushPromises()
+    const select = w.find('select[aria-label="Ámbito"]')
+    expect(select.findAll('option').map((o) => o.text())).toEqual(['Mundo', 'España (.es)'])
+    expect(fetch.mock.calls.map((c) => c[0]).some((u) => u.includes('tld='))).toBe(false)
+    await select.setValue('es')
+    await flushPromises()
+    const urls = fetch.mock.calls.map((c) => c[0])
+    expect(urls.some((u) => u.startsWith('/api/overview') && u.includes('tld=es'))).toBe(true)
+    expect(urls.some((u) => u.startsWith('/api/topics/lang_back') && u.includes('tld=es'))).toBe(true)
+    // el lote elegido se conserva al cambiar de ámbito
+    expect(w.find('select[aria-label="Lote"]').element.value).toBe('2')
+  })
+
+  it('modo API: con el ámbito España se oculta el selector de nº de sitios y se descarta el corte elegido', async () => {
+    mockApi({
+      '/api/batches': BATCHES,
+      '/api/overview': overview(),
+      '/api/topics/lang_back': ranking('lang_back', 'Lenguajes de back', []),
+    })
+    const w = mount(App)
+    await flushPromises()
+    await w.find('select[aria-label="Número de sitios"]').setValue(1000)
+    await flushPromises()
+    await w.find('select[aria-label="Ámbito"]').setValue('es')
+    await flushPromises()
+    expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(false)
+    const urls = fetch.mock.calls.map((c) => c[0])
+    const last = urls.filter((u) => u.startsWith('/api/overview')).at(-1)
+    expect(last).toContain('tld=es')
+    expect(last).not.toContain('max_position')
+    expect(new URLSearchParams(window.location.search).get('top')).toBeNull()
+    await w.find('select[aria-label="Ámbito"]').setValue('all')
+    await flushPromises()
+    expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(true)
   })
 
 })
@@ -315,6 +358,16 @@ describe('App con informes estáticos (flag source=reports)', () => {
       expect(w.find('select[aria-label="Informe"]').findAll('option')).toHaveLength(2)
       expect(fetch.mock.calls.map((c) => c[0])).toContain('reports/2026-es/top-all.json')
       expect(new URLSearchParams(window.location.search).get('report')).toBe('2026-es')
+    })
+
+    it('en el ámbito España no hay selector de nº de sitios, y sí en Mundo', async () => {
+      mockApi(withScopes())
+      const w = mount(App)
+      await flushPromises()
+      expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(true)
+      await w.find('select[aria-label="Ámbito"]').setValue('es')
+      await flushPromises()
+      expect(w.find('select[aria-label="Número de sitios"]').exists()).toBe(false)
     })
 
     it('una URL con ?report=2026-es abre directamente el ámbito España', async () => {

@@ -48,13 +48,17 @@ function apiSource() {
       }))
     },
     topSteps: () => TOP_STEPS,
-    overview: (value, top) => fetchOverview(value === '' ? null : value, top === '' ? null : top),
-    topic: (value, top, topic, { limit, category }) =>
+    // ámbitos fijos: el filtro por TLD lo aplica la API sobre los datos en vivo
+    scopes: ['all', 'es'],
+    overview: (value, top, scope) =>
+      fetchOverview(value === '' ? null : value, top === '' ? null : top, scope && scope !== 'all' ? scope : null),
+    topic: (value, top, topic, { limit, category, scope }) =>
       fetchTopic(topic, {
         batch: value === '' ? null : value,
         limit,
         category,
         maxPosition: top === '' ? null : top,
+        tld: scope && scope !== 'all' ? scope : null,
       }),
   }
 }

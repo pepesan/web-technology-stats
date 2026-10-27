@@ -12,6 +12,6 @@ async function get(path, params = {}) {
 }
 
 export const fetchBatches = () => get('batches')
-export const fetchOverview = (batch, maxPosition) => get('overview', { batch, max_position: maxPosition })
-export const fetchTopic = (topic, { batch, limit, category, maxPosition }) =>
-  get(`topics/${topic}`, { batch, limit, category, max_position: maxPosition })
+export const fetchOverview = (batch, maxPosition, tld) => get('overview', { batch, max_position: maxPosition, tld })
+export const fetchTopic = (topic, { batch, limit, category, maxPosition, tld }) =>
+  get(`topics/${topic}`, { batch, limit, category, max_position: maxPosition, tld })
